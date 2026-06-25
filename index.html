@@ -9,19 +9,25 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Noto Sans TC', system-ui, sans-serif; background: #FFFCF2; }
-        .calendar-cell { transition: all 0.1s ease; padding: 8px; border: 1px solid #E8E3FF; font-size: 13px; aspect-ratio: 1 / 1; }
+        
+        /* 移除 aspect-ratio，讓高度自適應彈性填滿 */
+        .calendar-cell { transition: all 0.1s ease; padding: 6px 8px; border: 1px solid #E8E3FF; font-size: 13px; }
         .calendar-cell:hover { border-color: #4F97E9 !important; border-width: 2px; }
         .event-pill { font-size: 11px; padding: 2px 6px; border-radius: 6px; margin-bottom: 2px; cursor: pointer; }
         
-        /* 視圖切換膠囊按鈕 (如圖2) */
-        .view-group { background: #EAE8FE; padding: 4px; border-radius: 30px; display: flex; gap: 4px; }
-        .view-btn { padding: 4px 18px; border-radius: 20px; color: #2C2C54; font-weight: 500; font-size: 14px; background: transparent; transition: all 0.2s; }
-        .view-btn.active { background: #2C2C54 !important; color: #fff !important; font-weight: 600; }
+        /* 視圖切換膠囊按鈕 (修改顏色為 #4F97E9) */
+        .view-group { background: #ffffff; border: 1px solid #4F97E9; padding: 4px; border-radius: 30px; display: flex; gap: 4px; }
+        .view-btn { padding: 4px 18px; border-radius: 20px; color: #4F97E9; font-weight: 600; font-size: 14px; background: transparent; transition: all 0.2s; }
+        .view-btn.active { background: #4F97E9 !important; color: #ffffff !important; }
         
-        /* 節日與農曆標籤 (如圖3) */
-        .holiday-badge, .lunar-badge { 
+        /* 節日與農曆標籤 */
+        .holiday-badge { 
             font-size: 10px; padding: 2px 8px; border-radius: 6px; 
-            background: #EFCB4B; color: white; font-weight: 600; display: inline-block;
+            background: #EF8275; color: #ffffff; font-weight: 600; display: inline-block;
+        }
+        .lunar-badge { 
+            font-size: 10px; padding: 2px 8px; border-radius: 6px; 
+            background: #EFCB4B; color: #ffffff; font-weight: 600; display: inline-block;
         }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -70,7 +76,7 @@
             <div id="calendar-lists-container" class="px-5 pt-4 hidden">
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-xs font-semibold text-slate-500">我的行事曆本</span>
-                    <button onclick="createNewCalendar()" class="text-[#4F97E9] hover:bg-blue-50 px-2 py-1 rounded text-xs">
+                    <button onclick="createNewCalendar()" class="text-[#4F97E9] hover:bg-blue-50 px-2 py-1 rounded text-xs transition">
                         <i class="fa-solid fa-plus mr-1"></i>新增
                     </button>
                 </div>
@@ -90,7 +96,7 @@
             </div>
         </div>
 
-        <div class="flex-1 flex flex-col min-w-0 relative">
+        <div class="flex-1 flex flex-col min-w-0 relative h-full">
             <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 z-50 flex items-center justify-center">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4F97E9]"></div>
             </div>
@@ -124,23 +130,21 @@
                 </div>
             </div>
 
-            <div class="flex-1 p-4 md:p-6 overflow-auto" style="background:#FFFCF2;">
-                <div class="max-w-[1200px] mx-auto" id="calendar-content"></div>
+            <div class="flex-1 p-4 md:p-6 overflow-y-auto min-h-0" style="background:#FFFCF2;">
+                <div class="max-w-[1200px] mx-auto min-h-full flex flex-col" id="calendar-content"></div>
             </div>
         </div>
     </div>
 
     <div id="day-detail-panel" class="fixed right-0 top-0 bottom-0 w-full md:w-[380px] bg-white shadow-2xl border-l transform translate-x-full transition-transform duration-300 z-50 flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-white z-10">
-            <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title">
-                </div>
-            <button onclick="closeDayDetail()" class="text-slate-400 hover:text-slate-600 text-xl px-2">
+            <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
+            <button onclick="closeDayDetail()" class="text-slate-400 hover:text-slate-600 text-xl px-2 transition-colors">
                 <i class="fa-solid fa-times"></i>
             </button>
         </div>
         
-        <div class="flex-1 overflow-y-auto p-5 space-y-4" style="background:#FFFCF2;" id="detail-events-list">
-           </div>
+        <div class="flex-1 overflow-y-auto p-5 space-y-4" style="background:#FFFCF2;" id="detail-events-list"></div>
         
         <div class="p-5 bg-white border-t z-10">
             <button onclick="openTripModalFromDetail()" class="w-full py-3.5 text-white rounded-[14px] font-bold text-[15px] shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
@@ -149,58 +153,58 @@
         </div>
     </div>
 
-    <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-black/20 z-40 hidden md:hidden"></div>
+    <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 hidden transition-opacity duration-300 cursor-pointer"></div>
 
-    <div id="trip-modal" onclick="if (event.target.id === 'trip-modal') closeTripModal()" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-end md:items-center justify-center p-0 md:p-4">
+    <div id="trip-modal" onclick="if (event.target.id === 'trip-modal') closeTripModal()" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
         <div onclick="event.stopImmediatePropagation()" class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
                 <h3 id="modal-title" class="text-2xl font-semibold" style="color:#2C2C54;">新增行程</h3>
-                <button onclick="closeTripModal()" class="text-2xl text-slate-400">×</button>
+                <button onclick="closeTripModal()" class="text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
             </div>
 
             <form id="trip-form" onsubmit="handleTripFormSubmit(event)" class="p-5 space-y-4">
                 <div>
                     <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">行程標題 <span class="text-red-500">*</span></label>
-                    <input type="text" id="trip-title" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]" placeholder="例如：產品開發會議">
+                    <input type="text" id="trip-title" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] focus:ring-1 focus:ring-[#4F97E9] outline-none transition" placeholder="例如：產品開發會議">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">開始日期</label>
-                        <input type="date" id="start-date" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
+                        <input type="date" id="start-date" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">開始時間</label>
-                        <input type="time" id="start-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
+                        <input type="time" id="start-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">結束日期</label>
-                        <input type="date" id="end-date" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
+                        <input type="date" id="end-date" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">結束時間</label>
-                        <input type="time" id="end-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
+                        <input type="time" id="end-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">地點</label>
-                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
+                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">描述 / 備註</label>
-                    <textarea id="trip-desc" rows="2" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]" placeholder="會議議程..."></textarea>
+                    <textarea id="trip-desc" rows="2" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none resize-none" placeholder="會議議程..."></textarea>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold mb-2" style="color:#2C2C54;">顏色標記</label>
                     <div class="flex flex-wrap gap-3" id="color-picker"></div>
                 </div>
                 <div class="flex gap-3 pt-3 sticky bottom-0 bg-white pb-2 border-t mt-4">
-                    <button type="button" id="delete-trip-btn" onclick="deleteTrip()" class="hidden w-12 flex items-center justify-center py-3 border border-red-200 text-red-500 rounded-2xl hover:bg-red-50">
+                    <button type="button" id="delete-trip-btn" onclick="deleteTrip()" class="hidden w-12 flex items-center justify-center py-3 border border-red-200 text-red-500 rounded-2xl hover:bg-red-50 transition-colors">
                         <i class="fa-solid fa-trash"></i>
                     </button>
-                    <button type="button" onclick="closeTripModal()" class="flex-1 py-3 border border-[#E8E3FF] rounded-2xl text-[#2C2C54] hover:bg-slate-50">取消</button>
-                    <button type="submit" id="save-trip-btn" class="flex-1 py-3.5 text-white rounded-2xl font-semibold shadow-sm hover:opacity-90" style="background:#4F97E9;">儲存</button>
+                    <button type="button" onclick="closeTripModal()" class="flex-1 py-3 border border-[#E8E3FF] rounded-2xl text-[#2C2C54] hover:bg-slate-50 transition-colors font-medium">取消</button>
+                    <button type="submit" id="save-trip-btn" class="flex-1 py-3.5 text-white rounded-2xl font-semibold shadow-sm hover:opacity-90 transition-opacity" style="background:#4F97E9;">儲存</button>
                 </div>
             </form>
         </div>
@@ -210,7 +214,6 @@
         // ==================== Supabase Client ====================
         const SUPABASE_URL = 'https://qemfwpdkhbbqnxrcmuyi.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlbWZ3cGRraGJicW54cmNtdXlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNjQzNTUsImV4cCI6MjA5Nzk0MDM1NX0.e66XIq1JTjHcQRUAWkKDZKA3pFHOsRX_pLbS-yK74Gg';
-        
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
@@ -230,7 +233,6 @@
                 if (error) throw error;
             } catch (error) {
                 alert('Google 登入失敗：' + error.message);
-                console.error(error);
             }
         }
 
@@ -244,7 +246,6 @@
             const { data: { user } } = await supabaseClient.auth.getUser();
             const loginBtn = document.getElementById('google-login-btn');
             
-            // Header elements
             const headerLoggedOut = document.getElementById('header-logged-out');
             const headerLoggedIn = document.getElementById('header-logged-in');
             
@@ -256,7 +257,6 @@
                 currentUser = user;
                 if (loginBtn) loginBtn.classList.add('hidden');
                 
-                // Toggle Headers
                 headerLoggedOut.classList.add('hidden');
                 headerLoggedIn.classList.remove('hidden');
                 headerLoggedIn.classList.add('flex');
@@ -293,7 +293,7 @@
                         await supabaseClient.from('calendar_members').insert({ calendar_id: joinId, user_id: currentUser.id, role: 'member' });
                         alert('成功加入共用行事曆！');
                     }
-                } catch(e) { console.error(e); }
+                } catch(e) {}
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
@@ -301,8 +301,12 @@
         async function generateShareLink() {
             if (!currentCalendarId) return;
             const link = `${window.location.origin}${window.location.pathname}?join=${currentCalendarId}`;
-            try { await navigator.clipboard.writeText(link); alert('🎉 共用連結已複製！傳送給朋友即可邀請他們加入。');
-            } catch (err) { prompt('請手動複製以下連結分享：', link); }
+            try { 
+                await navigator.clipboard.writeText(link); 
+                alert('🎉 共用連結已複製！傳送給朋友即可邀請他們加入。');
+            } catch (err) { 
+                prompt('請手動複製以下連結分享：', link); 
+            }
         }
 
         async function loadCalendars() {
@@ -371,7 +375,6 @@
             hideLoading();
             renderCurrentView();
             
-            // 如果右側面板開著，順便更新資料
             if (!document.getElementById('day-detail-panel').classList.contains('translate-x-full')) {
                 showDayDetail(selectedDate);
             }
@@ -445,9 +448,14 @@
         function renderCurrentView() {
             const container = document.getElementById('calendar-content');
             container.innerHTML = '';
-            if (currentView === 'month') renderMonthView(container);
-            else if (currentView === 'week') renderWeekView(container);
-            else renderYearView(container);
+            
+            if (currentView === 'month') {
+                renderMonthView(container);
+            } else if (currentView === 'week') {
+                renderWeekView(container);
+            } else {
+                renderYearView(container);
+            }
         }
 
         function getTripsForDate(dateStr) {
@@ -463,7 +471,6 @@
             pill.style.borderLeft = `3px solid ${color}`;
             pill.style.color = '#2C2C54';
             pill.textContent = trip.title;
-            // 取消原本的直接開啟 Modal，改成防泡泡，讓點擊格子本身觸發 showDayDetail
             pill.onclick = e => { e.stopPropagation(); openTripModal(trip); };
             return pill;
         }
@@ -474,11 +481,13 @@
             document.getElementById('period-title').innerHTML = `${year} 年 ${month + 1} 月`;
 
             const wrapper = document.createElement('div');
+            // 加入 min-h-0 與 flex-1 使網格能動態填滿且不溢出
+            wrapper.className = 'flex-1 flex flex-col h-full min-h-0';
             wrapper.innerHTML = `
-                <div class="grid grid-cols-7 gap-2 mb-2 px-1">
+                <div class="grid grid-cols-7 gap-2 mb-2 px-1 flex-shrink-0">
                     ${WEEKDAYS.map(d => `<div class="text-center text-[13px] py-1 text-slate-500 font-bold">${d}</div>`).join('')}
                 </div>
-                <div id="month-grid" class="grid grid-cols-7 gap-2 md:gap-3"></div>
+                <div id="month-grid" class="flex-1 grid grid-cols-7 grid-rows-6 gap-2 md:gap-3 min-h-0 pb-2"></div>
             `;
             container.appendChild(wrapper);
             const grid = wrapper.querySelector('#month-grid');
@@ -506,7 +515,7 @@
                 if (!cellDateStr) cellDateStr = `${cellY}-${String(cellM+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
 
                 const cell = document.createElement('div');
-                cell.className = `calendar-cell bg-white rounded-2xl flex flex-col cursor-pointer shadow-sm ${!isCurrent ? 'bg-slate-50 text-slate-400 opacity-70' : ''}`;
+                cell.className = `calendar-cell bg-white rounded-2xl flex flex-col cursor-pointer shadow-sm overflow-hidden ${!isCurrent ? 'bg-slate-50 text-slate-400 opacity-70' : ''}`;
                 
                 const todayStr = new Date().toISOString().split('T')[0];
                 if (cellDateStr === todayStr) {
@@ -514,18 +523,22 @@
                     cell.classList.add('bg-blue-50/20');
                 }
 
+                // 拆分節慶與農曆標籤的顯示邏輯與顏色
                 const holiday = getHoliday(cellDateStr);
-                const lunarTxt = holiday || getShortLunar(cellDateStr);
+                const lunarTxt = getShortLunar(cellDateStr);
+                let badgeHtml = holiday 
+                    ? `<span class="holiday-badge">${holiday}</span>` 
+                    : `<span class="lunar-badge">${lunarTxt}</span>`;
                 
                 const header = document.createElement('div');
-                header.className = 'flex items-start justify-between mb-1';
-                header.innerHTML = `<span class="font-bold text-[18px] text-[#2C2C54]">${dayNum}</span>
-                                    <span class="lunar-badge">${lunarTxt}</span>`;
+                header.className = 'flex items-start justify-between mb-1 flex-shrink-0';
+                header.innerHTML = `<span class="font-bold text-[16px] md:text-[18px] text-[#2C2C54]">${dayNum}</span>${badgeHtml}`;
                 cell.appendChild(header);
 
                 const dayTrips = getTripsForDate(cellDateStr);
                 const tripsWrap = document.createElement('div');
                 tripsWrap.className = 'flex-1 flex flex-col gap-y-1 overflow-hidden mt-1';
+                
                 dayTrips.slice(0, 3).forEach(trip => tripsWrap.appendChild(createTripPill(trip)));
                 
                 if (dayTrips.length > 3) {
@@ -560,7 +573,8 @@
             document.getElementById('period-title').innerHTML = `${dates[0].slice(5).replace('-','/')} ~ ${dates[6].slice(5).replace('-','/')}`;
             
             const wrapper = document.createElement('div');
-            wrapper.innerHTML = `<div class="grid grid-cols-7 gap-3" id="week-grid"></div>`;
+            wrapper.className = 'flex-1 flex flex-col';
+            wrapper.innerHTML = `<div class="flex-1 grid grid-cols-7 gap-3 pb-4" id="week-grid"></div>`;
             container.appendChild(wrapper);
             const grid = wrapper.querySelector('#week-grid');
             
@@ -570,11 +584,17 @@
                 if (dateStr === new Date().toISOString().split('T')[0]) cell.style.boxShadow = '0 0 0 2px #4F97E9';
                 
                 const dayTrips = getTripsForDate(dateStr);
-                const lunarTxt = getHoliday(dateStr) || getShortLunar(dateStr);
                 
-                let html = `<div class="font-bold text-sm mb-3 pb-2 border-b border-slate-100 flex flex-col items-center justify-center gap-1">
-                                <span class="text-[#2C2C54] text-lg">${dateStr.slice(5).replace('-','/')}</span> 
-                                <span class="lunar-badge">${lunarTxt}</span>
+                // 拆分節慶與農曆標籤的顯示邏輯與顏色
+                const holiday = getHoliday(dateStr);
+                const lunarTxt = getShortLunar(dateStr);
+                let badgeHtml = holiday 
+                    ? `<span class="holiday-badge">${holiday}</span>` 
+                    : `<span class="lunar-badge">${lunarTxt}</span>`;
+                
+                let html = `<div class="font-bold text-sm mb-3 pb-2 border-b border-slate-100 flex flex-col items-center justify-center gap-1.5">
+                                <span class="text-[#2C2C54] text-[17px]">${dateStr.slice(5).replace('-','/')}</span> 
+                                ${badgeHtml}
                             </div>`;
                 
                 if (dayTrips.length === 0) {
@@ -598,7 +618,7 @@
             const year = currentDate.getFullYear();
             document.getElementById('period-title').innerHTML = `${year} 年`;
             const wrapper = document.createElement('div');
-            wrapper.className = 'grid grid-cols-3 md:grid-cols-4 gap-4 md:gap-6';
+            wrapper.className = 'grid grid-cols-3 md:grid-cols-4 gap-4 md:gap-6 pb-6';
             for (let m = 0; m < 12; m++) {
                 const mini = document.createElement('div');
                 mini.className = 'bg-white border border-[#E8E3FF] rounded-3xl cursor-pointer shadow-sm hover:shadow-md hover:border-[#4F97E9] aspect-square flex flex-col items-center justify-center transition-all hover:-translate-y-1';
@@ -610,7 +630,7 @@
             container.appendChild(wrapper);
         }
 
-        // ==================== Right Side Detail Panel (圖4功能) ====================
+        // ==================== Right Side Detail Panel ====================
         function showDayDetail(dateStr) {
             selectedDate = dateStr;
             const panel = document.getElementById('day-detail-panel');
@@ -618,15 +638,19 @@
             
             const d = new Date(dateStr);
             const dayStr = WEEKDAYS[d.getDay()];
-            const lunarTxt = getHoliday(dateStr) || getShortLunar(dateStr);
             
-            // 設定標題
+            // 拆分節慶與農曆標籤的顯示邏輯與顏色
+            const holiday = getHoliday(dateStr);
+            const lunarTxt = getShortLunar(dateStr);
+            let badgeHtml = holiday 
+                ? `<span class="bg-[#EF8275] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${holiday}</span>`
+                : `<span class="bg-[#EFCB4B] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${lunarTxt}</span>`;
+            
             document.getElementById('detail-date-title').innerHTML = `
                 ${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 (${dayStr}) 
-                <span class="bg-[#EFCB4B] text-white text-[11px] px-2 py-0.5 rounded-lg tracking-wide">${lunarTxt}</span>
+                ${badgeHtml}
             `;
             
-            // 渲染行程卡片
             const dayTrips = getTripsForDate(dateStr);
             const list = document.getElementById('detail-events-list');
             if (dayTrips.length === 0) {
