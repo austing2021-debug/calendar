@@ -207,27 +207,27 @@
     </div>
 
     <script>
-        // ==================== Supabase Client ====================
+        // ==================== Supabase ====================
         const SUPABASE_URL = 'https://qemfwpdkhbbqnxrcmuyi.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlbWZ3cGRraGJicW54cmNtdXlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNjQzNTUsImV4cCI6MjA5Nzk0MDM1NX0.e66XIq1JTjHcQRUAWkKDZKA3pFHOsRX_pLbS-yK74Gg';
-        
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
+        let currentCalendarId = null;   // 目前選取的行事曆 ID
+        let userCalendars = [];         // 使用者擁有的行事曆列表
 
+        // ==================== Auth ====================
         async function signInWithGoogle() {
             try {
                 const { error } = await supabaseClient.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        // 硬編碼 GitHub Pages 網址，避免被導到 localhost
                         redirectTo: 'https://austing2021-debug.github.io/calendar/'
                     }
                 });
                 if (error) throw error;
             } catch (error) {
                 alert('Google 登入失敗：' + error.message);
-                console.error(error);
             }
         }
 
@@ -251,21 +251,123 @@
                 if (user.user_metadata?.avatar_url) {
                     document.getElementById('user-avatar').src = user.user_metadata.avatar_url;
                 }
+
+                // 登入成功後載入使用者的行事曆
+                await loadUserCalendars();
             } else {
                 if (loginBtn) loginBtn.classList.remove('hidden');
                 if (userInfo) userInfo.classList.add('hidden');
             }
         }
 
-        // ==================== Calendar Logic ====================
-        let trips = [];
+        // ==================== Calendar (Supabase) ====================
+        async function loadUserCalendars() {
+            if (!currentUser) return;
+
+            const { data, error } = await supabaseClient
+                .from('calendar_members')
+                .select(`
+                    calendar_id,
+                    calendars (id, name, share_token)
+                `)
+                .eq('user_id', currentUser.id);
+
+            if (error) {
+                console.error('載入行事曆失敗:', error);
+                return;
+            }
+
+            userCalendars = data.map(item => item.calendars);
+
+            // 如果使用者還沒有任何行事曆，就自動建立一個
+            if (userCalendars.length === 0) {
+                await createDefaultCalendar();
+            } else {
+                // 預設選取第一個行事曆
+                currentCalendarId = userCalendars[0].id;
+            }
+
+            // 載入該行事曆的行程
+            await loadEventsFromSupabase();
+        }
+
+        async function createDefaultCalendar() {
+            if (!currentUser) return;
+
+            // 建立新行事曆
+            const { data: newCalendar, error: calendarError } = await supabaseClient
+                .from('calendars')
+                .insert({
+                    name: '我的行事曆',
+                    owner_id: currentUser.id
+                })
+                .select()
+                .single();
+
+            if (calendarError) {
+                console.error('建立預設行事曆失敗:', calendarError);
+                return;
+            }
+
+            // 把建立者加入成員
+            const { error: memberError } = await supabaseClient
+                .from('calendar_members')
+                .insert({
+                    calendar_id: newCalendar.id,
+                    user_id: currentUser.id,
+                    role: 'owner'
+                });
+
+            if (memberError) {
+                console.error('加入成員失敗:', memberError);
+                return;
+            }
+
+            currentCalendarId = newCalendar.id;
+            userCalendars = [newCalendar];
+        }
+
+        async function loadEventsFromSupabase() {
+            if (!currentCalendarId) return;
+
+            const { data, error } = await supabaseClient
+                .from('events')
+                .select('*')
+                .eq('calendar_id', currentCalendarId)
+                .order('start_date', { ascending: true });
+
+            if (error) {
+                console.error('載入行程失敗:', error);
+                return;
+            }
+
+            // 轉換成原本 trips 的格式
+            trips = data.map(event => ({
+                id: event.id,
+                title: event.title,
+                startDate: event.start_date,
+                endDate: event.end_date,
+                startTime: event.start_time,
+                endTime: event.end_time,
+                location: event.location,
+                description: event.description,
+                color: event.color,
+                recurrence: event.recurrence,
+                reminder: event.reminder,
+                url: event.url
+            }));
+
+            renderCurrentView();
+            renderUpcoming();
+        }
+
+        // ==================== 原有 Calendar 功能（保留 + 修改儲存方式） ====================
         let currentDate = new Date();
         let selectedDate = null;
         let currentView = 'month';
         let editingTripId = null;
         let selectedColor = '#4F97E9';
         let currentRecurrence = null;
-        let draggedTripId = null;
 
         const NEW_COLORS = ['#FF6060', '#F8BD5E', '#F3E775', '#8FEC6F', '#76D2EE', '#6B8EF8', '#B88BF7'];
         const WEEKDAYS = ['日','一','二','三','四','五','六'];
@@ -287,20 +389,6 @@
         }
 
         function getHoliday(dateStr) { return TAIWAN_HOLIDAYS_2026[dateStr] || null; }
-
-        function saveToLocalStorage() { localStorage.setItem('myCalendarTrips', JSON.stringify(trips)); }
-        function loadFromLocalStorage() {
-            const saved = localStorage.getItem('myCalendarTrips');
-            if (saved) trips = JSON.parse(saved);
-            if (trips.length === 0) {
-                const today = new Date().toISOString().split('T')[0];
-                trips = [
-                    {id:'t1', title:'產品開發會議', startDate:today, endDate:today, startTime:'14:30', endTime:null, reminder:null, location:'線上', url:'', description:'', color:'#4F97E9', recurrence:null},
-                    {id:'t2', title:'客戶提案簡報', startDate: new Date(Date.now()+86400000).toISOString().split('T')[0], endDate: new Date(Date.now()+86400000).toISOString().split('T')[0], startTime:'09:00', endTime:'10:30', reminder:null, location:'台北信義區', url:'', description:'', color:'#EF8275', recurrence:'weekly'}
-                ];
-                saveToLocalStorage();
-            }
-        }
 
         function toggleMobileSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
@@ -419,6 +507,7 @@
         }
 
         function renderWeekView(container) {
+            // 簡化版週檢視
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             const day = currentDate.getDate();
@@ -556,34 +645,57 @@
             });
         }
 
-        function handleTripFormSubmit(e) {
+        async function handleTripFormSubmit(e) {
             e.preventDefault();
+            if (!currentUser || !currentCalendarId) {
+                alert('請先登入');
+                return;
+            }
+
             const title = document.getElementById('trip-title').value.trim();
             if (!title) return alert('請輸入行程標題');
 
-            const data = {
-                title,
-                startDate: document.getElementById('start-date').value,
-                endDate: document.getElementById('end-date').value || document.getElementById('start-date').value,
-                startTime: document.getElementById('start-time').value || null,
-                endTime: document.getElementById('end-time').value || null,
+            const formData = {
+                calendar_id: currentCalendarId,
+                title: title,
+                start_date: document.getElementById('start-date').value,
+                end_date: document.getElementById('end-date').value || null,
+                start_time: document.getElementById('start-time').value || null,
+                end_time: document.getElementById('end-time').value || null,
                 reminder: document.getElementById('reminder').value || null,
-                location: document.getElementById('location').value.trim(),
-                url: document.getElementById('trip-url').value.trim(),
-                description: document.getElementById('trip-desc').value.trim(),
+                location: document.getElementById('location').value.trim() || null,
+                url: document.getElementById('trip-url').value.trim() || null,
+                description: document.getElementById('trip-desc').value.trim() || null,
                 color: selectedColor,
-                recurrence: currentRecurrence
+                recurrence: currentRecurrence,
+                created_by: currentUser.id
             };
 
             if (editingTripId) {
-                const idx = trips.findIndex(t => t.id === editingTripId);
-                if (idx > -1) Object.assign(trips[idx], data);
+                // 更新
+                const { error } = await supabaseClient
+                    .from('events')
+                    .update(formData)
+                    .eq('id', editingTripId);
+
+                if (error) {
+                    alert('更新失敗：' + error.message);
+                    return;
+                }
             } else {
-                trips.push({ id: 'trip_' + Date.now().toString(36), ...data });
+                // 新增
+                const { error } = await supabaseClient
+                    .from('events')
+                    .insert(formData);
+
+                if (error) {
+                    alert('新增失敗：' + error.message);
+                    return;
+                }
             }
-            saveToLocalStorage();
+
             closeTripModal();
-            renderCurrentView();
+            await loadEventsFromSupabase();
         }
 
         function prevPeriod() {
@@ -609,13 +721,16 @@
             const c = document.getElementById('upcoming-list');
             const countEl = document.getElementById('upcoming-count');
             if (!c || !countEl) return;
+
             const today = new Date().toISOString().split('T')[0];
             const future = trips.filter(t => t.startDate >= today).sort((a,b) => a.startDate.localeCompare(b.startDate)).slice(0,6);
             countEl.textContent = future.length;
+
             if (future.length === 0) {
                 c.innerHTML = `<div class="px-3 py-4 text-xs text-slate-400 text-center">未來沒有行程</div>`;
                 return;
             }
+
             let html = '';
             future.forEach(t => {
                 html += `<div class="px-3 py-2 hover:bg-slate-50 rounded-2xl cursor-pointer flex gap-3 text-sm">
@@ -627,7 +742,7 @@
         }
 
         function showAllTripsModal() {
-            alert('所有行程列表（後續會改成從 Supabase 讀取）');
+            alert('所有行程列表功能開發中');
         }
 
         function showGoogleSyncModal() {
@@ -640,14 +755,15 @@
             window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`, '_blank');
         }
 
-        function init() {
-            loadFromLocalStorage();
+        async function init() {
+            await checkUser();           // 檢查登入狀態
+            loadFromLocalStorage();      // 先載入本地資料（之後會移除）
             selectedDate = new Date().toISOString().split('T')[0];
             document.getElementById('btn-month').classList.add('active');
             renderCurrentView();
             renderUpcoming();
-            checkUser();
-            console.log('%c[我的行事曆 v10] redirectTo 已硬編碼為 GitHub Pages', 'color:#4F97E9');
+
+            console.log('%c[我的行事曆 v11] Supabase 完整版初始化完成', 'color:#4F97E9');
         }
 
         window.onload = init;
