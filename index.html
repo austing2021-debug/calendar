@@ -11,17 +11,19 @@
         body { font-family: 'Noto Sans TC', system-ui, sans-serif; background: #FFFCF2; }
         .calendar-cell { transition: all 0.1s ease; min-height: 78px; padding: 6px; border: 1px solid #E8E3FF; font-size: 13px; }
         .calendar-cell:hover { transform: translateY(-1px); border-color: #EF8275 !important; border-width: 2px; }
-        .event-pill { font-size: 10px; padding: 1px 5px; border-radius: 5px; margin-bottom: 1px; }
+        .event-pill { font-size: 10px; padding: 1px 5px; border-radius: 5px; margin-bottom: 1px; cursor: pointer; }
         .view-btn { background-color: #4F97E9; color: #FFFCF2; font-size: 13px; }
         .view-btn.active { background-color: #2C2C54 !important; color: #E8E3FF !important; font-weight: 600; }
         .holiday-badge, .lunar-badge { 
             font-size: 9px; padding: 1px 5px; border-radius: 4px; 
             background: #EF8275; color: #FFFCF2; font-weight: 600; display: inline-block;
         }
+        /* 隱藏捲軸但可滾動 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #E8E3FF; border-radius: 10px; }
     </style>
 </head>
 <body>
-    <!-- Top Bar -->
     <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-50">
         <div class="flex items-center gap-x-3">
             <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#2C2C54;">
@@ -35,7 +37,6 @@
     </div>
 
     <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar -->
         <div id="sidebar" class="sidebar w-72 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 md:relative md:translate-x-0 fixed md:static h-full z-50 transform -translate-x-full md:transform-none transition-transform">
             <div class="px-6 pt-6 pb-4 border-b hidden md:block">
                 <div class="flex items-center gap-x-3">
@@ -48,7 +49,6 @@
                 </div>
             </div>
 
-            <!-- User Info -->
             <div id="user-info" class="px-5 py-4 border-b hidden">
                 <div class="flex items-center gap-x-3">
                     <img id="user-avatar" class="w-10 h-10 rounded-full object-cover" alt="">
@@ -56,43 +56,55 @@
                         <div id="user-name" class="font-semibold text-sm truncate"></div>
                         <div id="user-email" class="text-xs text-slate-500 truncate"></div>
                     </div>
-                    <button onclick="signOut()" class="text-red-500 hover:text-red-600 p-1">
+                    <button onclick="signOut()" class="text-red-500 hover:text-red-600 p-1" title="登出">
                         <i class="fa-solid fa-sign-out-alt"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="px-5 pt-5 space-y-2">
-                <button onclick="openTripModal()" class="w-full flex items-center justify-center gap-x-2 px-4 py-3 text-white rounded-2xl text-sm font-semibold shadow-sm" style="background:#4F97E9;">
+            <div id="calendar-lists-container" class="px-5 pt-4 hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-semibold text-slate-500">我的行事曆本</span>
+                    <button onclick="createNewCalendar()" class="text-[#4F97E9] hover:bg-blue-50 px-2 py-1 rounded text-xs">
+                        <i class="fa-solid fa-plus mr-1"></i>新增
+                    </button>
+                </div>
+                <div id="my-calendars-list" class="space-y-1 mb-4">
+                    </div>
+            </div>
+
+            <div class="px-5 pt-2 space-y-2">
+                <button id="add-trip-btn" onclick="openTripModal()" class="hidden w-full flex items-center justify-center gap-x-2 px-4 py-3 text-white rounded-2xl text-sm font-semibold shadow-sm" style="background:#4F97E9;">
                     <i class="fa-solid fa-plus"></i>
                     <span>新增行程</span>
                 </button>
 
-                <button onclick="showGoogleSyncModal()" class="w-full flex items-center justify-center gap-x-2 px-4 py-2.5 bg-white border rounded-2xl text-sm font-medium" style="color:#2C2C54; border-color:#E8E3FF;">
-                    <i class="fa-brands fa-google"></i>
-                    <span>同步 Google 行程曆</span>
-                </button>
-
-                <button id="google-login-btn" onclick="signInWithGoogle()" class="w-full flex items-center justify-center gap-x-2 px-4 py-2.5 bg-white border border-[#E8E3FF] rounded-2xl text-sm font-medium text-[#2C2C54]">
-                    <i class="fa-brands fa-google text-red-500"></i>
+                <button id="google-login-btn" onclick="signInWithGoogle()" class="w-full flex items-center justify-center gap-x-2 px-4 py-3 bg-white border border-[#E8E3FF] rounded-2xl text-sm font-semibold text-[#2C2C54] shadow-sm">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5">
                     <span>使用 Google 登入</span>
                 </button>
             </div>
 
-            <div class="px-5 pt-6 flex-1">
+            <div class="px-5 pt-6 flex-1 overflow-y-auto">
                 <div class="flex items-center justify-between mb-3 px-1">
                     <div class="text-xs font-semibold flex items-center gap-x-2" style="color:#4F97E9;">
                         <i class="fa-solid fa-clock"></i>
-                        <span>即將到來</span>
+                        <span>即將到來 (當前行事曆)</span>
                     </div>
-                    <span id="upcoming-count" class="text-[10px] px-2 py-px rounded-full text-white" style="background:#4F97E9;"></span>
+                    <span id="upcoming-count" class="text-[10px] px-2 py-px rounded-full text-white" style="background:#4F97E9;">0</span>
                 </div>
-                <div id="upcoming-list" class="space-y-1 text-sm"></div>
+                <div id="upcoming-list" class="space-y-1 text-sm">
+                    <div class="px-3 py-4 text-xs text-slate-400 text-center">請先登入或選擇行事曆</div>
+                </div>
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="flex-1 flex flex-col min-w-0">
+        <div class="flex-1 flex flex-col min-w-0 relative">
+            
+            <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 z-40 flex items-center justify-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4F97E9]"></div>
+            </div>
+
             <div class="h-16 border-b bg-white px-4 md:px-8 flex items-center justify-between flex-shrink-0">
                 <div class="flex items-center gap-x-3">
                     <div class="flex items-center bg-white border border-[#E8E3FF] rounded-3xl p-1">
@@ -104,7 +116,7 @@
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
                     </div>
-                    <button onclick="goToday()" class="hidden md:flex px-4 py-1.5 text-sm border border-[#E8E3FF] rounded-2xl items-center gap-x-2 text-[#2C2C54]">
+                    <button onclick="goToday()" class="hidden md:flex px-4 py-1.5 text-sm border border-[#E8E3FF] rounded-2xl items-center gap-x-2 text-[#2C2C54] hover:bg-slate-50">
                         <span>今天</span>
                     </button>
                 </div>
@@ -113,11 +125,10 @@
                     <div class="rounded-3xl p-1 flex text-sm">
                         <button onclick="switchView('week')" id="btn-week" class="view-btn px-4 py-1.5 rounded-[14px] text-sm">週</button>
                         <button onclick="switchView('month')" id="btn-month" class="view-btn active px-4 py-1.5 rounded-[14px] text-sm">月</button>
-                        <button onclick="switchView('year')" id="btn-year" class="view-btn px-4 py-1.5 rounded-[14px] text-sm">年</button>
                     </div>
-                    <button onclick="showAllTripsModal()" class="px-3 md:px-4 py-2 text-sm flex items-center gap-x-2 border border-[#E8E3FF] rounded-2xl text-[#2C2C54]">
-                        <span class="hidden md:inline">所有行程</span>
-                        <i class="fa-solid fa-list-ul md:hidden"></i>
+                    <button id="share-btn" onclick="generateShareLink()" class="hidden px-3 md:px-4 py-2 text-sm flex items-center gap-x-2 border border-[#4F97E9] text-[#4F97E9] rounded-2xl hover:bg-[#4F97E9] hover:text-white transition">
+                        <i class="fa-solid fa-link"></i>
+                        <span class="hidden md:inline">邀請共用</span>
                     </button>
                 </div>
             </div>
@@ -128,7 +139,6 @@
         </div>
     </div>
 
-    <!-- Trip Modal -->
     <div id="trip-modal" onclick="if (event.target.id === 'trip-modal') closeTripModal()" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
         <div onclick="event.stopImmediatePropagation()" class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
@@ -149,10 +159,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">開始時間</label>
-                        <div class="flex gap-2">
-                            <input type="time" id="start-time" class="flex-1 px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
-                            <select id="start-ampm" class="w-20 px-3 border border-[#E8E3FF] rounded-2xl"><option>AM</option><option>PM</option></select>
-                        </div>
+                        <input type="time" id="start-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
                     </div>
                 </div>
 
@@ -163,29 +170,13 @@
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">結束時間</label>
-                        <div class="flex gap-2">
-                            <input type="time" id="end-time" class="flex-1 px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
-                            <select id="end-ampm" class="w-20 px-3 border border-[#E8E3FF] rounded-2xl"><option>AM</option><option>PM</option></select>
-                        </div>
+                        <input type="time" id="end-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
                     </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">提醒時間</label>
-                    <input type="datetime-local" id="reminder" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
                 </div>
                 
                 <div>
                     <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">地點</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="location" placeholder="例如：台北信義區" class="flex-1 px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
-                        <button type="button" onclick="openGoogleMaps()" class="px-4 py-3 border border-[#E8E3FF] rounded-2xl text-[#EF8275]">地圖</button>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-semibold mb-1.5" style="color:#2C2C54;">相關連結</label>
-                    <input type="url" id="trip-url" placeholder="https://..." class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
+                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9]">
                 </div>
 
                 <div>
@@ -198,36 +189,43 @@
                     <div class="flex flex-wrap gap-3" id="color-picker"></div>
                 </div>
 
-                <div class="flex gap-3 pt-3 sticky bottom-0 bg-white pb-2">
-                    <button type="button" onclick="closeTripModal()" class="flex-1 py-3 border border-[#E8E3FF] rounded-2xl text-[#2C2C54]">取消</button>
-                    <button type="submit" id="save-trip-btn" class="flex-1 py-3.5 text-white rounded-2xl font-semibold" style="background:#4F97E9;">儲存行程</button>
+                <div class="flex gap-3 pt-3 sticky bottom-0 bg-white pb-2 border-t mt-4">
+                    <button type="button" id="delete-trip-btn" onclick="deleteTrip()" class="hidden w-12 flex items-center justify-center py-3 border border-red-200 text-red-500 rounded-2xl hover:bg-red-50">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <button type="button" onclick="closeTripModal()" class="flex-1 py-3 border border-[#E8E3FF] rounded-2xl text-[#2C2C54] hover:bg-slate-50">取消</button>
+                    <button type="submit" id="save-trip-btn" class="flex-1 py-3.5 text-white rounded-2xl font-semibold shadow-sm hover:opacity-90" style="background:#4F97E9;">儲存</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
-        // ==================== Supabase ====================
+        // ==================== Supabase Client ====================
         const SUPABASE_URL = 'https://qemfwpdkhbbqnxrcmuyi.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlbWZ3cGRraGJicW54cmNtdXlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNjQzNTUsImV4cCI6MjA5Nzk0MDM1NX0.e66XIq1JTjHcQRUAWkKDZKA3pFHOsRX_pLbS-yK74Gg';
+        
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
-        let currentCalendarId = null;   // 目前選取的行事曆 ID
-        let userCalendars = [];         // 使用者擁有的行事曆列表
+        let myCalendars = [];
+        let currentCalendarId = null;
 
-        // ==================== Auth ====================
+        // UI Helpers
+        function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden'); }
+        function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
+
+        // ==================== Auth & Calendar Logic ====================
         async function signInWithGoogle() {
             try {
                 const { error } = await supabaseClient.auth.signInWithOAuth({
                     provider: 'google',
-                    options: {
-                        redirectTo: 'https://austing2021-debug.github.io/calendar/'
-                    }
+                    options: { redirectTo: 'https://austing2021-debug.github.io/calendar/' }
                 });
                 if (error) throw error;
             } catch (error) {
                 alert('Google 登入失敗：' + error.message);
+                console.error(error);
             }
         }
 
@@ -236,15 +234,22 @@
             location.reload();
         }
 
-        async function checkUser() {
+        async function checkUserAndInitialize() {
+            showLoading();
             const { data: { user } } = await supabaseClient.auth.getUser();
             const loginBtn = document.getElementById('google-login-btn');
             const userInfo = document.getElementById('user-info');
+            const addTripBtn = document.getElementById('add-trip-btn');
+            const calLists = document.getElementById('calendar-lists-container');
+            const shareBtn = document.getElementById('share-btn');
 
             if (user) {
                 currentUser = user;
                 if (loginBtn) loginBtn.classList.add('hidden');
                 if (userInfo) userInfo.classList.remove('hidden');
+                if (addTripBtn) addTripBtn.classList.remove('hidden');
+                if (calLists) calLists.classList.remove('hidden');
+                if (shareBtn) shareBtn.classList.remove('hidden');
                 
                 document.getElementById('user-name').textContent = user.user_metadata?.full_name || user.email;
                 document.getElementById('user-email').textContent = user.email;
@@ -252,153 +257,227 @@
                     document.getElementById('user-avatar').src = user.user_metadata.avatar_url;
                 }
 
-                // 登入成功後載入使用者的行事曆
-                await loadUserCalendars();
+                await checkJoinRequest(); // Check if URL has ?join=
+                await loadCalendars();
             } else {
                 if (loginBtn) loginBtn.classList.remove('hidden');
                 if (userInfo) userInfo.classList.add('hidden');
+                hideLoading();
+                renderCurrentView(); // Render empty
             }
         }
 
-        // ==================== Calendar (Supabase) ====================
-        async function loadUserCalendars() {
-            if (!currentUser) return;
-
-            const { data, error } = await supabaseClient
-                .from('calendar_members')
-                .select(`
-                    calendar_id,
-                    calendars (id, name, share_token)
-                `)
-                .eq('user_id', currentUser.id);
-
-            if (error) {
-                console.error('載入行事曆失敗:', error);
-                return;
+        // ==================== Join Calendar ====================
+        async function checkJoinRequest() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const joinId = urlParams.get('join');
+            if (joinId && currentUser) {
+                try {
+                    // Check if already joined
+                    const { data: existing } = await supabaseClient
+                        .from('calendar_members')
+                        .select('id').eq('calendar_id', joinId).eq('user_id', currentUser.id).single();
+                    
+                    if (!existing) {
+                        await supabaseClient.from('calendar_members').insert({
+                            calendar_id: joinId,
+                            user_id: currentUser.id,
+                            role: 'member'
+                        });
+                        alert('成功加入共用行事曆！');
+                    }
+                } catch(e) {
+                    console.error("Join error:", e);
+                }
+                // Clean URL parameter
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
-
-            userCalendars = data.map(item => item.calendars);
-
-            // 如果使用者還沒有任何行事曆，就自動建立一個
-            if (userCalendars.length === 0) {
-                await createDefaultCalendar();
-            } else {
-                // 預設選取第一個行事曆
-                currentCalendarId = userCalendars[0].id;
-            }
-
-            // 載入該行事曆的行程
-            await loadEventsFromSupabase();
         }
 
-        async function createDefaultCalendar() {
-            if (!currentUser) return;
-
-            // 建立新行事曆
-            const { data: newCalendar, error: calendarError } = await supabaseClient
-                .from('calendars')
-                .insert({
-                    name: '我的行事曆',
-                    owner_id: currentUser.id
-                })
-                .select()
-                .single();
-
-            if (calendarError) {
-                console.error('建立預設行事曆失敗:', calendarError);
-                return;
-            }
-
-            // 把建立者加入成員
-            const { error: memberError } = await supabaseClient
-                .from('calendar_members')
-                .insert({
-                    calendar_id: newCalendar.id,
-                    user_id: currentUser.id,
-                    role: 'owner'
-                });
-
-            if (memberError) {
-                console.error('加入成員失敗:', memberError);
-                return;
-            }
-
-            currentCalendarId = newCalendar.id;
-            userCalendars = [newCalendar];
-        }
-
-        async function loadEventsFromSupabase() {
+        async function generateShareLink() {
             if (!currentCalendarId) return;
-
-            const { data, error } = await supabaseClient
-                .from('events')
-                .select('*')
-                .eq('calendar_id', currentCalendarId)
-                .order('start_date', { ascending: true });
-
-            if (error) {
-                console.error('載入行程失敗:', error);
-                return;
+            const link = `${window.location.origin}${window.location.pathname}?join=${currentCalendarId}`;
+            try {
+                await navigator.clipboard.writeText(link);
+                alert('🎉 共用連結已複製！傳送給朋友即可邀請他們加入此行事曆。');
+            } catch (err) {
+                prompt('請手動複製以下連結分享：', link);
             }
-
-            // 轉換成原本 trips 的格式
-            trips = data.map(event => ({
-                id: event.id,
-                title: event.title,
-                startDate: event.start_date,
-                endDate: event.end_date,
-                startTime: event.start_time,
-                endTime: event.end_time,
-                location: event.location,
-                description: event.description,
-                color: event.color,
-                recurrence: event.recurrence,
-                reminder: event.reminder,
-                url: event.url
-            }));
-
-            renderCurrentView();
-            renderUpcoming();
         }
 
-        // ==================== 原有 Calendar 功能（保留 + 修改儲存方式） ====================
-        let currentDate = new Date();
-        let selectedDate = null;
-        let currentView = 'month';
-        let editingTripId = null;
-        let selectedColor = '#4F97E9';
-        let currentRecurrence = null;
+        // ==================== Calendar Management ====================
+        async function loadCalendars() {
+            if (!currentUser) return;
+            
+            // Get calendars the user is a member of
+            const { data, error } = await supabaseClient
+                .from('calendar_members')
+                .select('calendar_id, role, calendars(id, name)')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: true });
 
+            if (data && data.length > 0) {
+                myCalendars = data.map(d => ({ ...d.calendars, role: d.role }));
+                // Default select the first one if not set
+                if (!currentCalendarId || !myCalendars.find(c => c.id === currentCalendarId)) {
+                    currentCalendarId = myCalendars[0].id;
+                }
+            } else {
+                // Auto create default calendar for new user
+                const { data: newCal, error: createErr } = await supabaseClient
+                    .from('calendars')
+                    .insert({ name: '我的預設行事曆', created_by: currentUser.id })
+                    .select().single();
+                
+                if (newCal) {
+                    await supabaseClient.from('calendar_members').insert({
+                        calendar_id: newCal.id, user_id: currentUser.id, role: 'owner'
+                    });
+                    myCalendars = [{...newCal, role: 'owner'}];
+                    currentCalendarId = newCal.id;
+                }
+            }
+
+            renderCalendarListUI();
+            await fetchTrips();
+        }
+
+        async function createNewCalendar() {
+            const name = prompt("請輸入新行事曆名稱：");
+            if (!name) return;
+            
+            showLoading();
+            const { data: newCal } = await supabaseClient
+                .from('calendars')
+                .insert({ name: name, created_by: currentUser.id })
+                .select().single();
+                
+            if (newCal) {
+                await supabaseClient.from('calendar_members').insert({
+                    calendar_id: newCal.id, user_id: currentUser.id, role: 'owner'
+                });
+                currentCalendarId = newCal.id; // Switch to new one
+                await loadCalendars();
+            } else {
+                hideLoading();
+            }
+        }
+
+        function switchCalendar(calId) {
+            currentCalendarId = calId;
+            renderCalendarListUI();
+            showLoading();
+            fetchTrips();
+        }
+
+        function renderCalendarListUI() {
+            const listEl = document.getElementById('my-calendars-list');
+            listEl.innerHTML = myCalendars.map(cal => `
+                <div onclick="switchCalendar('${cal.id}')" 
+                     class="flex items-center px-3 py-2 rounded-xl cursor-pointer transition-colors ${cal.id === currentCalendarId ? 'bg-[#4F97E9]/10 text-[#4F97E9] font-medium border border-[#4F97E9]/20' : 'hover:bg-slate-100 text-slate-700'}">
+                    <div class="w-3 h-3 rounded-full mr-3 ${cal.id === currentCalendarId ? 'bg-[#4F97E9]' : 'bg-slate-300'}"></div>
+                    <span class="flex-1 truncate text-sm">${cal.name}</span>
+                    ${cal.role === 'owner' ? '<i class="fa-solid fa-crown text-[10px] text-amber-400"></i>' : '<i class="fa-solid fa-user-group text-[10px] text-slate-400"></i>'}
+                </div>
+            `).join('');
+        }
+
+        // ==================== Trips CRUD (Supabase) ====================
+        let trips = [];
+        let editingTripId = null;
+
+        async function fetchTrips() {
+            if (!currentCalendarId) return hideLoading();
+            const { data, error } = await supabaseClient
+                .from('trips')
+                .select('*')
+                .eq('calendar_id', currentCalendarId);
+            
+            if (data) {
+                // Map snake_case from DB to camelCase for UI
+                trips = data.map(t => ({
+                    id: t.id,
+                    title: t.title,
+                    startDate: t.start_date,
+                    endDate: t.end_date,
+                    startTime: t.start_time,
+                    endTime: t.end_time,
+                    location: t.location,
+                    description: t.description,
+                    color: t.color
+                }));
+            } else {
+                trips = [];
+            }
+            hideLoading();
+            renderCurrentView();
+        }
+
+        async function handleTripFormSubmit(e) {
+            e.preventDefault();
+            if (!currentCalendarId || !currentUser) return alert('請先登入並選擇行事曆');
+
+            const title = document.getElementById('trip-title').value.trim();
+            if (!title) return alert('請輸入行程標題');
+
+            const dbData = {
+                calendar_id: currentCalendarId,
+                title: title,
+                start_date: document.getElementById('start-date').value,
+                end_date: document.getElementById('end-date').value || document.getElementById('start-date').value,
+                start_time: document.getElementById('start-time').value || null,
+                end_time: document.getElementById('end-time').value || null,
+                location: document.getElementById('location').value.trim(),
+                description: document.getElementById('trip-desc').value.trim(),
+                color: selectedColor,
+                created_by: currentUser.id
+            };
+
+            showLoading();
+            if (editingTripId) {
+                await supabaseClient.from('trips').update(dbData).eq('id', editingTripId);
+            } else {
+                await supabaseClient.from('trips').insert(dbData);
+            }
+            
+            closeTripModal();
+            fetchTrips();
+        }
+
+        async function deleteTrip() {
+            if (!editingTripId) return;
+            if (confirm('確定要永久刪除此行程嗎？')) {
+                showLoading();
+                await supabaseClient.from('trips').delete().eq('id', editingTripId);
+                closeTripModal();
+                fetchTrips();
+            }
+        }
+
+
+        // ==================== Render Core (Retained mostly original) ====================
+        let currentDate = new Date();
+        let currentView = 'month';
+        let selectedDate = null;
+        let selectedColor = '#4F97E9';
+        
         const NEW_COLORS = ['#FF6060', '#F8BD5E', '#F3E775', '#8FEC6F', '#76D2EE', '#6B8EF8', '#B88BF7'];
         const WEEKDAYS = ['日','一','二','三','四','五','六'];
         const MONTH_NAMES = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 
-        const TAIWAN_HOLIDAYS_2026 = {
-            "2026-01-01":"元旦","2026-02-17":"農曆除夕","2026-02-18":"農曆新年",
-            "2026-04-03":"兒童節","2026-04-04":"清明節","2026-05-01":"勞動節",
-            "2026-06-19":"端午節","2026-10-01":"中秋節","2026-10-10":"國慶日"
+        const TAIWAN_HOLIDAYS = {
+            "2026-01-01":"元旦","2026-02-17":"除夕","2026-02-18":"春節",
+            "2026-04-03":"兒童節","2026-04-04":"清明節","2026-06-19":"端午節","2026-09-25":"中秋節","2026-10-10":"國慶日"
         };
 
-        function getShortLunar(dateStr) {
-            const d = new Date(dateStr);
-            const m = d.getMonth() + 1;
-            const day = d.getDate();
-            if (m === 6 && day === 24) return "5/29";
-            if (m === 6 && day === 25) return "5/30";
-            return `${m}/${day}`;
-        }
+        function getHoliday(dateStr) { return TAIWAN_HOLIDAYS[dateStr] || null; }
 
-        function getHoliday(dateStr) { return TAIWAN_HOLIDAYS_2026[dateStr] || null; }
-
-        function toggleMobileSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-        }
+        function toggleMobileSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
 
         function switchView(view) {
             currentView = view;
             document.getElementById('btn-week').classList.toggle('active', view==='week');
             document.getElementById('btn-month').classList.toggle('active', view==='month');
-            document.getElementById('btn-year').classList.toggle('active', view==='year');
             renderCurrentView();
         }
 
@@ -407,8 +486,23 @@
             container.innerHTML = '';
             if (currentView === 'month') renderMonthView(container);
             else if (currentView === 'week') renderWeekView(container);
-            else renderYearView(container);
             renderUpcoming();
+        }
+
+        function getTripsForDate(dateStr) {
+            return trips.filter(t => t.startDate <= dateStr && (!t.endDate || t.endDate >= dateStr))
+                        .sort((a,b) => (a.startTime||'').localeCompare(b.startTime||''));
+        }
+
+        function createTripPill(trip) {
+            const pill = document.createElement('div');
+            const color = trip.color || '#4F97E9';
+            pill.className = `event-pill px-1.5 py-[0.5px] text-xs transition hover:opacity-80`;
+            pill.style.backgroundColor = color + '25';
+            pill.style.borderLeft = `3px solid ${color}`;
+            pill.innerHTML = `<span class="font-medium truncate block">${trip.title}</span>`;
+            pill.onclick = e => { e.stopPropagation(); openTripModal(trip); };
+            return pill;
         }
 
         function renderMonthView(container) {
@@ -419,16 +513,13 @@
             const wrapper = document.createElement('div');
             wrapper.innerHTML = `
                 <div class="grid grid-cols-7 gap-2 mb-2 px-1">
-                    ${WEEKDAYS.map(d => `<div class="text-center text-xs py-1" style="color:#6b7280;">${d}</div>`).join('')}
+                    ${WEEKDAYS.map(d => `<div class="text-center text-xs py-1 text-slate-500 font-medium">${d}</div>`).join('')}
                 </div>
                 <div id="month-grid" class="grid grid-cols-7 gap-2"></div>
             `;
             container.appendChild(wrapper);
-            renderMonthGrid(wrapper.querySelector('#month-grid'), year, month);
-        }
+            const grid = wrapper.querySelector('#month-grid');
 
-        function renderMonthGrid(grid, year, month) {
-            grid.innerHTML = '';
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const daysInPrev = new Date(year, month, 0).getDate();
@@ -452,62 +543,44 @@
                 if (!cellDateStr) cellDateStr = `${cellY}-${String(cellM+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
 
                 const cell = document.createElement('div');
-                cell.className = `calendar-cell bg-white rounded-3xl flex flex-col cursor-pointer ${!isCurrent ? 'bg-[#f8fafc] text-slate-400' : ''}`;
+                cell.className = `calendar-cell bg-white rounded-2xl flex flex-col cursor-pointer shadow-sm ${!isCurrent ? 'bg-slate-50 text-slate-400 opacity-70' : ''}`;
+                
                 const todayStr = new Date().toISOString().split('T')[0];
-                if (cellDateStr === todayStr) cell.style.boxShadow = '0 0 0 3px #E8E3FF';
+                if (cellDateStr === todayStr) {
+                    cell.style.boxShadow = '0 0 0 2px #4F97E9';
+                    cell.classList.add('bg-blue-50/30');
+                }
 
-                const header = document.createElement('div');
-                header.className = 'flex items-start justify-between mb-0.5 px-1';
                 const holiday = getHoliday(cellDateStr);
-                const label = holiday ? `<span class="holiday-badge">${holiday}</span>` : `<span class="lunar-badge">${getShortLunar(cellDateStr)}</span>`;
-                header.innerHTML = `<span class="font-semibold text-[19px] tracking-tighter">${dayNum}</span>${label}`;
+                const header = document.createElement('div');
+                header.className = 'flex items-start justify-between mb-1 px-1 pt-1';
+                header.innerHTML = `<span class="font-semibold text-[16px]">${dayNum}</span>
+                                    ${holiday ? `<span class="holiday-badge">${holiday}</span>` : ''}`;
                 cell.appendChild(header);
 
                 const dayTrips = getTripsForDate(cellDateStr);
                 const tripsWrap = document.createElement('div');
-                tripsWrap.className = 'flex-1 flex flex-col gap-y-[1px] text-[10px]';
-                dayTrips.slice(0,3).forEach(trip => tripsWrap.appendChild(createTripPill(trip)));
+                tripsWrap.className = 'flex-1 flex flex-col gap-y-1 overflow-hidden';
+                dayTrips.slice(0, 3).forEach(trip => tripsWrap.appendChild(createTripPill(trip)));
+                
                 if (dayTrips.length > 3) {
                     const more = document.createElement('div');
-                    more.className = 'text-[9px] text-slate-400 pl-1';
+                    more.className = 'text-[10px] text-slate-500 pl-1 font-medium';
                     more.textContent = `+${dayTrips.length-3} 更多`;
                     tripsWrap.appendChild(more);
                 }
                 cell.appendChild(tripsWrap);
 
                 cell.onclick = (e) => {
-                    if (e.target.closest('.event-pill')) return;
+                    if (e.target.closest('.event-pill') || !currentUser) return;
                     selectedDate = cellDateStr;
-                    if (!isCurrent) {
-                        currentDate = new Date(cellY, cellM, 1);
-                        renderCurrentView();
-                    }
-                    showFloatingPanel(cellDateStr);
+                    openTripModal(null, cellDateStr);
                 };
                 grid.appendChild(cell);
             }
         }
 
-        function createTripPill(trip) {
-            const pill = document.createElement('div');
-            const color = trip.color || '#4F97E9';
-            pill.className = `event-pill px-1.5 py-[0.5px] text-xs`;
-            pill.style.backgroundColor = color + '25';
-            pill.style.borderLeft = `2.5px solid ${color}`;
-            pill.draggable = true;
-            pill.innerHTML = `<span class="font-medium truncate">${trip.title}</span>`;
-            pill.onclick = e => { e.stopPropagation(); openTripModal(trip); };
-            pill.ondragstart = e => { draggedTripId = trip.id; e.dataTransfer.setData('text/plain', trip.id); };
-            return pill;
-        }
-
-        function getTripsForDate(dateStr) {
-            return trips.filter(t => t.startDate <= dateStr && (!t.endDate || t.endDate >= dateStr))
-                        .sort((a,b) => (a.startTime||'').localeCompare(b.startTime||''));
-        }
-
         function renderWeekView(container) {
-            // 簡化版週檢視
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             const day = currentDate.getDate();
@@ -529,69 +602,60 @@
             
             dates.forEach(dateStr => {
                 const cell = document.createElement('div');
-                cell.className = `min-h-[320px] bg-white border border-[#E8E3FF] rounded-3xl p-2 cursor-pointer`;
-                if (dateStr === new Date().toISOString().split('T')[0]) cell.style.boxShadow = '0 0 0 3px #E8E3FF';
+                cell.className = `min-h-[400px] bg-white border border-[#E8E3FF] rounded-2xl p-2 cursor-pointer shadow-sm`;
+                if (dateStr === new Date().toISOString().split('T')[0]) cell.style.boxShadow = '0 0 0 2px #4F97E9';
                 
                 const dayTrips = getTripsForDate(dateStr);
                 const holiday = getHoliday(dateStr);
-                const lunar = getShortLunar(dateStr);
-                const label = holiday ? `<span class="holiday-badge">${holiday}</span>` : `<span class="lunar-badge">${lunar}</span>`;
                 
-                let html = `<div class="font-semibold text-sm mb-1 flex items-center justify-between"><span>${dateStr.slice(5)}</span> ${label}</div>`;
+                let html = `<div class="font-semibold text-sm mb-2 pb-2 border-b border-slate-100 flex items-center justify-between">
+                                <span>${dateStr.slice(5).replace('-','/')}</span> 
+                                ${holiday ? `<span class="holiday-badge">${holiday}</span>` : ''}
+                            </div>`;
+                
                 if (dayTrips.length === 0) {
-                    html += `<div class="text-xs text-slate-300 text-center mt-8">無行程</div>`;
+                    html += `<div class="text-xs text-slate-300 text-center mt-10">無行程</div>`;
                 } else {
                     html += dayTrips.map(t => `
                         <div onclick="event.stopImmediatePropagation(); openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" 
-                             class="mb-1.5 px-2 py-1.5 rounded-xl text-xs" style="background:${t.color||'#4F97E9'}20; border-left:3px solid ${t.color||'#4F97E9'}">
-                            <div class="font-medium">${t.title}</div>
+                             class="mb-2 px-2 py-2 rounded-xl text-xs hover:opacity-80 transition" style="background:${t.color||'#4F97E9'}15; border-left:4px solid ${t.color||'#4F97E9'}">
+                            <div class="font-semibold text-slate-800 mb-1">${t.title}</div>
+                            ${t.startTime ? `<div class="text-[10px] text-slate-500"><i class="fa-regular fa-clock mr-1"></i>${t.startTime}${t.endTime ? ' - '+t.endTime : ''}</div>` : ''}
                         </div>
                     `).join('');
                 }
                 cell.innerHTML = html;
-                cell.onclick = () => { selectedDate = dateStr; showFloatingPanel(dateStr); };
+                cell.onclick = () => { if(currentUser) openTripModal(null, dateStr); };
                 grid.appendChild(cell);
             });
         }
 
-        function renderYearView(container) {
-            const year = currentDate.getFullYear();
-            document.getElementById('period-title').innerHTML = `${year} 年`;
-            const wrapper = document.createElement('div');
-            wrapper.className = 'grid grid-cols-3 md:grid-cols-4 gap-3';
-            for (let m = 0; m < 12; m++) {
-                const mini = document.createElement('div');
-                mini.className = 'bg-white border border-[#E8E3FF] rounded-2xl p-3 cursor-pointer hover:shadow-md';
-                mini.innerHTML = `<div class="font-semibold text-center text-sm">${MONTH_NAMES[m]}</div>`;
-                mini.onclick = () => { currentDate = new Date(year, m, 1); switchView('month'); };
-                wrapper.appendChild(mini);
+        function renderUpcoming() {
+            const c = document.getElementById('upcoming-list');
+            const countEl = document.getElementById('upcoming-count');
+            if (!c || !countEl || !currentUser) return;
+            
+            const today = new Date().toISOString().split('T')[0];
+            const future = trips.filter(t => t.startDate >= today).sort((a,b) => a.startDate.localeCompare(b.startDate)).slice(0, 6);
+            countEl.textContent = future.length;
+            
+            if (future.length === 0) {
+                c.innerHTML = `<div class="px-3 py-4 text-xs text-slate-400 text-center">未來沒有行程</div>`;
+                return;
             }
-            container.appendChild(wrapper);
-        }
-
-        function showFloatingPanel(dateStr) {
-            selectedDate = dateStr;
-            const panel = document.createElement('div');
-            panel.className = 'fixed inset-0 bg-black/40 z-50 flex justify-end';
-            panel.innerHTML = `
-                <div class="w-full md:w-[380px] h-full bg-white border-l flex flex-col shadow-2xl">
-                    <div class="px-5 py-4 border-b flex justify-between items-center">
-                        <div class="font-semibold text-lg">${dateStr}</div>
-                        <button class="text-2xl text-slate-400 hover:text-red-500" onclick="this.closest('.fixed').remove()">×</button>
-                    </div>
-                    <div class="flex-1 p-5 overflow-y-auto">
-                        <div class="text-center py-8 text-slate-400">完整浮動視窗功能後續補上<br>目前顯示日期：${dateStr}</div>
-                    </div>
-                    <div class="p-5 border-t bg-[#FFFCF2]">
-                        <button onclick="this.closest('.fixed').remove(); openTripModal(null, '${dateStr}')" class="w-full py-3 text-white rounded-2xl text-sm font-semibold" style="background:#4F97E9;">
-                            在此日期新增行程
-                        </button>
+            
+            c.innerHTML = future.map(t => `
+                <div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="px-3 py-2 hover:bg-slate-50 rounded-xl cursor-pointer flex gap-3 text-sm border border-transparent hover:border-slate-100 transition">
+                    <div class="w-1.5 h-1.5 mt-2 rounded-full flex-shrink-0" style="background:${t.color||'#4F97E9'}"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium truncate text-slate-700">${t.title}</div>
+                        <div class="text-xs text-slate-400">${t.startDate.slice(5).replace('-','/')} ${t.startTime || ''}</div>
                     </div>
                 </div>
-            `;
-            document.body.appendChild(panel);
+            `).join('');
         }
 
+        // ==================== Modal Controls ====================
         function openTripModal(trip = null, prefillDate = null) {
             const modal = document.getElementById('trip-modal');
             modal.classList.remove('hidden');
@@ -599,25 +663,34 @@
             const form = document.getElementById('trip-form');
             form.reset();
             initColorPicker();
+            
+            const delBtn = document.getElementById('delete-trip-btn');
 
             if (trip) {
                 editingTripId = trip.id;
                 document.getElementById('modal-title').textContent = '編輯行程';
-                document.getElementById('save-trip-btn').textContent = '更新行程';
+                document.getElementById('save-trip-btn').textContent = '更新';
+                delBtn.classList.remove('hidden');
+                
                 document.getElementById('trip-title').value = trip.title || '';
                 document.getElementById('start-date').value = trip.startDate || '';
                 document.getElementById('end-date').value = trip.endDate || '';
                 document.getElementById('start-time').value = trip.startTime || '';
                 document.getElementById('end-time').value = trip.endTime || '';
-                document.getElementById('reminder').value = trip.reminder || '';
                 document.getElementById('location').value = trip.location || '';
-                document.getElementById('trip-url').value = trip.url || '';
                 document.getElementById('trip-desc').value = trip.description || '';
+                
+                if (trip.color) {
+                    selectedColor = trip.color;
+                    initColorPicker(); // re-render selected state
+                }
             } else {
                 editingTripId = null;
                 document.getElementById('modal-title').textContent = '新增行程';
-                document.getElementById('save-trip-btn').textContent = '儲存行程';
-                const d = prefillDate || selectedDate || new Date().toISOString().split('T')[0];
+                document.getElementById('save-trip-btn').textContent = '儲存';
+                delBtn.classList.add('hidden');
+                
+                const d = prefillDate || new Date().toISOString().split('T')[0];
                 document.getElementById('start-date').value = d;
                 document.getElementById('end-date').value = d;
             }
@@ -631,142 +704,35 @@
         function initColorPicker() {
             const c = document.getElementById('color-picker');
             c.innerHTML = '';
-            selectedColor = '#4F97E9';
             NEW_COLORS.forEach(col => {
                 const s = document.createElement('div');
-                s.className = `w-8 h-8 rounded-full cursor-pointer border-2 ${col === selectedColor ? 'ring-2 ring-offset-2 ring-[#4F97E9] scale-110' : ''}`;
+                s.className = `w-7 h-7 rounded-full cursor-pointer transition ${col === selectedColor ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-110'}`;
                 s.style.backgroundColor = col;
-                s.onclick = () => {
-                    c.querySelectorAll('div').forEach(x => x.classList.remove('ring-2','ring-offset-2','ring-[#4F97E9]','scale-110'));
-                    s.classList.add('ring-2','ring-offset-2','ring-[#4F97E9]','scale-110');
-                    selectedColor = col;
-                };
+                s.onclick = () => { selectedColor = col; initColorPicker(); };
                 c.appendChild(s);
             });
         }
 
-        async function handleTripFormSubmit(e) {
-            e.preventDefault();
-            if (!currentUser || !currentCalendarId) {
-                alert('請先登入');
-                return;
-            }
-
-            const title = document.getElementById('trip-title').value.trim();
-            if (!title) return alert('請輸入行程標題');
-
-            const formData = {
-                calendar_id: currentCalendarId,
-                title: title,
-                start_date: document.getElementById('start-date').value,
-                end_date: document.getElementById('end-date').value || null,
-                start_time: document.getElementById('start-time').value || null,
-                end_time: document.getElementById('end-time').value || null,
-                reminder: document.getElementById('reminder').value || null,
-                location: document.getElementById('location').value.trim() || null,
-                url: document.getElementById('trip-url').value.trim() || null,
-                description: document.getElementById('trip-desc').value.trim() || null,
-                color: selectedColor,
-                recurrence: currentRecurrence,
-                created_by: currentUser.id
-            };
-
-            if (editingTripId) {
-                // 更新
-                const { error } = await supabaseClient
-                    .from('events')
-                    .update(formData)
-                    .eq('id', editingTripId);
-
-                if (error) {
-                    alert('更新失敗：' + error.message);
-                    return;
-                }
-            } else {
-                // 新增
-                const { error } = await supabaseClient
-                    .from('events')
-                    .insert(formData);
-
-                if (error) {
-                    alert('新增失敗：' + error.message);
-                    return;
-                }
-            }
-
-            closeTripModal();
-            await loadEventsFromSupabase();
-        }
-
+        // ==================== Navigation ====================
         function prevPeriod() {
             if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() - 1);
             else if (currentView === 'week') currentDate.setDate(currentDate.getDate() - 7);
-            else currentDate.setFullYear(currentDate.getFullYear() - 1);
             renderCurrentView();
         }
         function nextPeriod() {
             if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + 1);
             else if (currentView === 'week') currentDate.setDate(currentDate.getDate() + 7);
-            else currentDate.setFullYear(currentDate.getFullYear() + 1);
             renderCurrentView();
         }
         function goToday() {
             currentDate = new Date();
-            selectedDate = new Date().toISOString().split('T')[0];
-            if (currentView !== 'month') switchView('month');
-            else renderCurrentView();
-        }
-
-        function renderUpcoming() {
-            const c = document.getElementById('upcoming-list');
-            const countEl = document.getElementById('upcoming-count');
-            if (!c || !countEl) return;
-
-            const today = new Date().toISOString().split('T')[0];
-            const future = trips.filter(t => t.startDate >= today).sort((a,b) => a.startDate.localeCompare(b.startDate)).slice(0,6);
-            countEl.textContent = future.length;
-
-            if (future.length === 0) {
-                c.innerHTML = `<div class="px-3 py-4 text-xs text-slate-400 text-center">未來沒有行程</div>`;
-                return;
-            }
-
-            let html = '';
-            future.forEach(t => {
-                html += `<div class="px-3 py-2 hover:bg-slate-50 rounded-2xl cursor-pointer flex gap-3 text-sm">
-                    <div class="w-2 h-2 mt-2 rounded-full" style="background:${t.color||'#4F97E9'}"></div>
-                    <div class="flex-1 min-w-0"><div class="font-medium truncate">${t.title}</div><div class="text-xs text-slate-500">${t.startDate.slice(5)}</div></div>
-                </div>`;
-            });
-            c.innerHTML = html;
-        }
-
-        function showAllTripsModal() {
-            alert('所有行程列表功能開發中');
-        }
-
-        function showGoogleSyncModal() {
-            alert('Google 同步功能開發中');
-        }
-
-        function openGoogleMaps() {
-            const loc = document.getElementById('location').value.trim();
-            if (!loc) return alert('請輸入地點');
-            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`, '_blank');
-        }
-
-        async function init() {
-            await checkUser();           // 檢查登入狀態
-            loadFromLocalStorage();      // 先載入本地資料（之後會移除）
-            selectedDate = new Date().toISOString().split('T')[0];
-            document.getElementById('btn-month').classList.add('active');
             renderCurrentView();
-            renderUpcoming();
-
-            console.log('%c[我的行事曆 v11] Supabase 完整版初始化完成', 'color:#4F97E9');
         }
 
-        window.onload = init;
+        window.onload = () => {
+            document.getElementById('btn-month').classList.add('active');
+            checkUserAndInitialize();
+        };
     </script>
 </body>
 </html>
