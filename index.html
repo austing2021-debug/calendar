@@ -39,9 +39,9 @@
         .view-btn { padding: 4px 16px; border-radius: 20px; color: #4F97E9; font-weight: 600; font-size: 14px; background: transparent; transition: all 0.2s; }
         .view-btn.active { background: #4F97E9 !important; color: #ffffff !important; }
         
-        /* 節日與農曆標籤 */
-        .holiday-badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: #EF8275; color: #ffffff; font-weight: 600; display: inline-block; white-space: nowrap; }
-        .lunar-badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: #EFCB4B; color: #ffffff; font-weight: 600; display: inline-block; white-space: nowrap; }
+        /* 節日與農曆標籤 (更新顏色設定) */
+        .holiday-badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: #F0958B; color: #ffffff; font-weight: 600; display: inline-block; white-space: nowrap; }
+        .lunar-badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: #FFDE96; color: #ffffff; font-weight: 600; display: inline-block; white-space: nowrap; text-shadow: 0px 0px 2px rgba(0,0,0,0.15); }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: #E8E3FF; border-radius: 10px; }
@@ -254,7 +254,7 @@
             }
         });
 
-        // ==================== Swipe Gesture (改為上下滑動) ====================
+        // ==================== Swipe Gesture (上下滑動) ====================
         let touchstartX = 0;
         let touchendX = 0;
         let touchstartY = 0;
@@ -263,7 +263,6 @@
         function handleSwipe() {
             const diffX = touchstartX - touchendX;
             const diffY = touchstartY - touchendY;
-            // 改為判斷 Y 軸的滑動 (上下)
             if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 50) {
                 if (diffY > 0) nextPeriod(); // 向上滑 -> 下一個月
                 else prevPeriod();           // 向下滑 -> 上一個月
@@ -297,10 +296,9 @@
             } catch (error) { alert('Google 登入失敗：' + error.message); }
         }
 
-        // 新增 Google 日曆同步按鈕邏輯
         async function syncGoogleCalendar() {
             try {
-                // 向 Google 請求 Calendar 讀取權限
+                // 要求 Google Calendar API 權限以取得 provider_token
                 const { error } = await supabaseClient.auth.signInWithOAuth({
                     provider: 'google', 
                     options: { 
@@ -313,6 +311,43 @@
             } catch (error) { alert('Google 授權失敗：' + error.message); }
         }
 
+        // 讀取 Google 日曆事件並推入 googleEvents 陣列
+        async function fetchGoogleEvents(token) {
+            try {
+                showLoading();
+                const now = new Date();
+                const timeMin = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString();
+                const timeMax = new Date(now.getFullYear() + 1, now.getMonth(), 1).toISOString();
+                
+                const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                
+                if (data.items) {
+                    googleEvents = data.items.map(item => {
+                        const start = item.start.dateTime || item.start.date;
+                        const end = item.end.dateTime || item.end.date;
+                        return {
+                            id: item.id,
+                            title: '📅 ' + (item.summary || '未命名行程'),
+                            startDate: start.split('T')[0],
+                            endDate: end.split('T')[0],
+                            startTime: item.start.dateTime ? start.split('T')[1].substring(0,5) : null,
+                            endTime: item.end.dateTime ? end.split('T')[1].substring(0,5) : null,
+                            location: item.location || '',
+                            description: item.description || '',
+                            color: '#34A853' // Google 綠色
+                        };
+                    });
+                }
+                hideLoading();
+            } catch(e) {
+                console.error("Fetch Google Events failed:", e);
+                hideLoading();
+            }
+        }
+
         async function signOut() { 
             await supabaseClient.auth.signOut(); 
             location.reload(); 
@@ -320,7 +355,9 @@
 
         async function checkUserAndInitialize() {
             showLoading();
-            const { data: { user } } = await supabaseClient.auth.getUser();
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+            const user = session?.user;
+
             if (user) {
                 currentUser = user;
                 document.getElementById('google-login-btn').classList.add('hidden');
@@ -335,7 +372,11 @@
                 document.getElementById('header-name').textContent = user.user_metadata?.full_name || user.email;
                 if (user.user_metadata?.avatar_url) document.getElementById('header-avatar').src = user.user_metadata.avatar_url;
 
-                // 檢查網址列是否有共用邀請碼
+                // 如果有 provider_token，執行抓取 Google 日曆
+                if (session && session.provider_token) {
+                    await fetchGoogleEvents(session.provider_token);
+                }
+
                 await checkJoinRequest();
                 await loadCalendars();
             } else {
@@ -347,7 +388,6 @@
         }
 
         // ==================== Calendar Management & Share ====================
-        // 新增：處理別人點擊連結加入
         async function checkJoinRequest() {
             const joinId = new URLSearchParams(window.location.search).get('join');
             if (joinId && currentUser) {
@@ -362,7 +402,6 @@
             }
         }
 
-        // 新增：產生共用連結
         async function generateShareLink() {
             if (!currentCalendarId) return alert('請先選擇一個行事曆！');
             const link = `${window.location.origin}${window.location.pathname}?join=${currentCalendarId}`;
@@ -459,6 +498,7 @@
 
         // ==================== Trips CRUD ====================
         let trips = [];
+        let googleEvents = []; // 儲存 Google 行程
         let editingTripId = null;
 
         async function fetchTrips() {
@@ -484,7 +524,9 @@
             const today = new Date().toISOString().split('T')[0];
             const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
             
-            const future = trips.filter(t => t.startDate >= today && t.startDate <= nextMonth)
+            // 結合 Supabase 與 Google 的行程顯示於近期活動
+            const allTrips = [...trips, ...googleEvents];
+            const future = allTrips.filter(t => t.startDate >= today && t.startDate <= nextMonth)
                                 .sort((a,b) => a.startDate.localeCompare(b.startDate));
             countEl.textContent = future.length;
             
@@ -503,7 +545,7 @@
                 }
 
                 return `
-                <div class="flex items-start gap-x-2.5 py-1.5 pl-2">
+                <div class="flex items-start gap-x-2.5 py-1.5 pl-2 cursor-pointer hover:bg-slate-50 transition rounded-lg" onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})">
                     <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5" style="background:${t.color||'#EF8275'}"></div>
                     <div class="flex-col min-w-0 leading-tight flex">
                         <span class="font-bold truncate text-[#2C2C54] text-[13px]">${t.title}</span>
@@ -596,8 +638,11 @@
             else renderYearView(c);
         }
 
+        // 結合 Supabase 與 Google 兩邊的行程資料渲染
         function getTripsForDate(dateStr) { 
-            return trips.filter(t => t.startDate <= dateStr && (!t.endDate || t.endDate >= dateStr)).sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')); 
+            const allTrips = [...trips, ...googleEvents];
+            return allTrips.filter(t => t.startDate <= dateStr && (!t.endDate || t.endDate >= dateStr))
+                           .sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')); 
         }
 
         function createMonthTripPill(trip, dateStr) {
@@ -727,7 +772,7 @@
                 const allDayTrips = allTrips.filter(t => !t.startTime);
                 
                 let pills = allDayTrips.map(t => `<div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="text-[9px] md:text-[11px] px-1 py-0.5 rounded text-white font-bold cursor-pointer truncate mb-1" style="background:${t.color||'#EF8275'}">${t.title}</div>`).join('');
-                if(getHoliday(dateStr)) pills = `<div class="text-[9px] md:text-[11px] px-1 py-0.5 rounded text-white font-bold bg-[#EF8275] mb-1 truncate">${getHoliday(dateStr)}</div>` + pills;
+                if(getHoliday(dateStr)) pills = `<div class="text-[9px] md:text-[11px] px-1 py-0.5 rounded text-white font-bold bg-[#F0958B] mb-1 truncate">${getHoliday(dateStr)}</div>` + pills;
 
                 allDayHTML += `<div class="border-r border-[#E8E3FF] p-1 overflow-hidden cursor-pointer" onclick="showDayDetail('${dateStr}')">${pills}</div>`;
             });
@@ -799,7 +844,7 @@
         function showDayDetail(dateStr) {
             selectedDate = dateStr;
             const d = new Date(dateStr), holiday = getHoliday(dateStr), lunarTxt = getShortLunar(dateStr);
-            let badgeHtml = holiday ? `<span class="bg-[#EF8275] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${holiday}</span>` : `<span class="bg-[#EFCB4B] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${lunarTxt}</span>`;
+            let badgeHtml = holiday ? `<span class="bg-[#F0958B] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${holiday}</span>` : `<span class="bg-[#FFDE96] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide" style="text-shadow: 0px 0px 2px rgba(0,0,0,0.15);">${lunarTxt}</span>`;
             
             document.getElementById('detail-date-title').innerHTML = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 (${WEEKDAYS[d.getDay()]}) ${badgeHtml}`;
             
