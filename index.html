@@ -49,7 +49,6 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden w-full max-w-full">
 
-    <!-- 修復：移除了 overflow-hidden，改為 relative，這樣登出選單才不會在手機版被切掉 -->
     <div class="h-14 md:h-16 border-b bg-white px-2 md:px-6 flex items-center justify-between flex-shrink-0 z-40 relative shadow-sm w-full gap-2">
         
         <div class="flex items-center gap-x-1.5 md:gap-x-2 flex-shrink-0 z-10">
@@ -146,7 +145,7 @@
         </div>
     </div>
 
-    <!-- 側邊欄行程詳細面板保持不變... -->
+    <!-- 側邊欄行程詳細面板 -->
     <div id="day-detail-panel" class="fixed inset-y-0 right-0 w-full md:w-[380px] bg-white shadow-2xl border-l transform translate-x-full transition-transform duration-300 z-[60] flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-white z-10 mt-safe md:mt-0">
             <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
@@ -440,16 +439,23 @@
                 return;
             }
             
-            // 修復：改為純文字條列式 (拔除按鈕底色等樣式，呈現俐落列表)
+            // 近期活動改為純文字 (無 onclick 與指標)，並顯示開始至結束日期的完整範圍
             c.innerHTML = future.slice(0, 8).map(t => {
-                const dateParts = t.startDate.split('-');
-                const shortDate = `${dateParts[1]}/${dateParts[2]}`;
+                const startParts = t.startDate.split('-');
+                let dateDisplay = `${startParts[1]}/${startParts[2]}`;
+                
+                // 如果有結束日期，且與開始日期不同，將它連起來
+                if (t.endDate && t.endDate !== t.startDate) {
+                    const endParts = t.endDate.split('-');
+                    dateDisplay += ` ~ ${endParts[1]}/${endParts[2]}`;
+                }
+
                 return `
-                <div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="flex items-start gap-x-2.5 py-1.5 cursor-pointer hover:opacity-70 transition pl-2">
+                <div class="flex items-start gap-x-2.5 py-1.5 pl-2">
                     <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5" style="background:${t.color||'#EF8275'}"></div>
                     <div class="flex-col min-w-0 leading-tight flex">
                         <span class="font-bold truncate text-[#2C2C54] text-[13px]">${t.title}</span>
-                        <span class="text-[11px] font-medium text-slate-400 mt-0.5">${shortDate} ${t.startTime || ''}</span>
+                        <span class="text-[11px] font-medium text-slate-400 mt-0.5">${dateDisplay} ${t.startTime || ''}</span>
                     </div>
                 </div>
                 `;
@@ -507,7 +513,23 @@
         const NEW_COLORS = ['#FF6060', '#F8BD5E', '#F3E775', '#8FEC6F', '#76D2EE', '#6B8EF8', '#B88BF7'];
         const WEEKDAYS = ['週日','週一','週二','週三','週四','週五','週六'];
         const EN_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const TAIWAN_HOLIDAYS = { "2026-01-01":"元旦","2026-02-17":"除夕","2026-02-18":"春節","2026-04-03":"兒童節","2026-04-04":"清明節","2026-06-19":"端午節","2026-09-25":"中秋節","2026-10-10":"國慶日" };
+        
+        // 修正：2026年(民國115年)台灣確切的國定假日列表
+        const TAIWAN_HOLIDAYS = { 
+            "2026-01-01":"元旦",
+            "2026-02-16":"除夕",
+            "2026-02-17":"春節",
+            "2026-02-28":"和平紀念日",
+            "2026-04-04":"兒童節",
+            "2026-04-05":"清明節",
+            "2026-05-01":"勞動節",
+            "2026-06-19":"端午節",
+            "2026-09-25":"中秋節",
+            "2026-09-28":"教師節",
+            "2026-10-10":"國慶日",
+            "2026-10-25":"光復節",
+            "2026-12-25":"行憲紀念日" 
+        };
 
         function getHoliday(dateStr) { return TAIWAN_HOLIDAYS[dateStr] || null; }
         
