@@ -49,7 +49,8 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden w-full max-w-full">
 
-    <div class="h-14 md:h-16 border-b bg-white px-2 md:px-6 flex items-center justify-between flex-shrink-0 z-40 shadow-sm w-full gap-2 overflow-hidden">
+    <!-- 修復：移除了 overflow-hidden，改為 relative，這樣登出選單才不會在手機版被切掉 -->
+    <div class="h-14 md:h-16 border-b bg-white px-2 md:px-6 flex items-center justify-between flex-shrink-0 z-40 relative shadow-sm w-full gap-2">
         
         <div class="flex items-center gap-x-1.5 md:gap-x-2 flex-shrink-0 z-10">
             <button onclick="toggleSidebar()" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-[#2C2C54] border-2 border-[#2C2C54] rounded-full hover:bg-slate-50 transition">
@@ -145,6 +146,7 @@
         </div>
     </div>
 
+    <!-- 側邊欄行程詳細面板保持不變... -->
     <div id="day-detail-panel" class="fixed inset-y-0 right-0 w-full md:w-[380px] bg-white shadow-2xl border-l transform translate-x-full transition-transform duration-300 z-[60] flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-white z-10 mt-safe md:mt-0">
             <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
@@ -438,16 +440,16 @@
                 return;
             }
             
-            // 條列式顯示近期活動 (更貼合純文字列表的樣式)
+            // 修復：改為純文字條列式 (拔除按鈕底色等樣式，呈現俐落列表)
             c.innerHTML = future.slice(0, 8).map(t => {
                 const dateParts = t.startDate.split('-');
                 const shortDate = `${dateParts[1]}/${dateParts[2]}`;
                 return `
-                <div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="flex items-start gap-x-3 py-2 cursor-pointer hover:bg-slate-50 transition rounded-lg px-2 -mx-2">
-                    <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2" style="background:${t.color||'#EF8275'}"></div>
-                    <div class="flex-1 min-w-0 leading-tight">
-                        <div class="font-bold truncate text-[#2C2C54] text-[14px]">${t.title}</div>
-                        <div class="text-[12px] font-medium text-slate-400 mt-1">${shortDate} ${t.startTime || ''}</div>
+                <div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="flex items-start gap-x-2.5 py-1.5 cursor-pointer hover:opacity-70 transition pl-2">
+                    <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5" style="background:${t.color||'#EF8275'}"></div>
+                    <div class="flex-col min-w-0 leading-tight flex">
+                        <span class="font-bold truncate text-[#2C2C54] text-[13px]">${t.title}</span>
+                        <span class="text-[11px] font-medium text-slate-400 mt-0.5">${shortDate} ${t.startTime || ''}</span>
                     </div>
                 </div>
                 `;
@@ -642,7 +644,6 @@
                 dates.push(d.toISOString().split('T')[0]);
             }
             
-            // 手機版優化：捨棄補 0，顯示如 6/20 ~ 6/26 省下寬度
             const startParts = dates[0].slice(5).split('-');
             const endParts = dates[6].slice(5).split('-');
             const startDateStr = `${parseInt(startParts[0])}/${parseInt(startParts[1])}`;
