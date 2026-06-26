@@ -6,23 +6,20 @@
     <title>我的行事曆</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- 引入專業農曆計算套件 -->
-    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+    <!-- 引入 Lunar JS 以獲取精準農曆日期 -->
+    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
     <style>
         body { font-family: 'Noto Sans TC', system-ui, sans-serif; background: #FFFCF2; overflow: hidden; }
         
-        /* Sidebar 收合動畫 */
-        #sidebar-container { transition: width 0.3s ease-in-out; overflow: hidden; }
-        .sidebar-collapsed { width: 0 !important; }
-        .sidebar-inner { width: 18rem; /* 確保收合時內容不會擠壓變形 */ }
-
-        /* 月曆方格樣式 (無間距、單線邊框) */
-        .calendar-cell { transition: all 0.1s ease; padding: 4px 6px; border-right: 1px solid #E8E3FF; border-bottom: 1px solid #E8E3FF; font-size: 13px; }
-        .calendar-cell:hover { border-color: #4F97E9 !important; border-width: 2px; z-index: 10; margin: -1px; }
+        /* 月曆無間隙格子的樣式 (使用內陰影避免 hover 時推擠版面) */
+        .calendar-cell { transition: all 0.1s ease; cursor: pointer; border-right: 1px solid #E8E3FF; border-bottom: 1px solid #E8E3FF; }
+        .calendar-cell:hover { box-shadow: inset 0 0 0 2px #4F97E9; z-index: 10; }
+        .event-pill { font-size: 11px; padding: 2px 6px; border-radius: 6px; margin-bottom: 2px; cursor: pointer; }
         
-        .event-pill { font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; cursor: pointer; }
+        /* 週曆的時間網格樣式 */
+        .time-grid-bg { background-image: linear-gradient(#E8E3FF 1px, transparent 1px); background-size: 100% 60px; }
+        .time-slot { height: 60px; border-bottom: 1px solid #E8E3FF; }
         
         /* 視圖切換膠囊按鈕 */
         .view-group { background: #ffffff; border: 1px solid #4F97E9; padding: 4px; border-radius: 30px; display: flex; gap: 4px; }
@@ -30,214 +27,200 @@
         .view-btn.active { background: #4F97E9 !important; color: #ffffff !important; }
         
         /* 節日與農曆標籤 */
-        .holiday-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #EF8275; color: #ffffff; font-weight: 600; display: inline-block; }
-        .lunar-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #EFCB4B; color: #ffffff; font-weight: 600; display: inline-block; }
-
-        /* 週曆網格設定 */
-        .week-time-row { height: 60px; border-bottom: 1px solid #f1f5f9; }
-        .week-event-absolute { position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 4px; font-size: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; border-left-width: 4px; border-left-style: solid; }
+        .holiday-badge { font-size: 10px; padding: 2px 8px; border-radius: 6px; background: #EF8275; color: #ffffff; font-weight: 600; display: inline-block; }
+        .lunar-badge { font-size: 10px; padding: 2px 8px; border-radius: 6px; background: #EFCB4B; color: #ffffff; font-weight: 600; display: inline-block; }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #E8E3FF; border-radius: 10px; }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body class="flex h-screen overflow-hidden">
 
-    <!-- Top Bar -->
-    <div class="h-16 bg-white border-b px-4 md:px-6 flex items-center justify-between z-40 flex-shrink-0 relative">
-        <div class="flex items-center gap-x-3">
-            <!-- 漢堡按鈕 (同時支援手機與桌機開關) -->
-            <button onclick="toggleSidebar()" class="w-10 h-10 flex items-center justify-center text-[#2C2C54] hover:bg-slate-100 rounded-full transition">
-                <i class="fa-solid fa-bars text-xl"></i>
-            </button>
-            
-            <div class="hidden md:flex items-center gap-x-3 ml-2">
-                <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-[#2C2C54]">
-                    <i class="fa-solid fa-calendar text-white text-sm"></i>
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar w-72 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 transition-all duration-300 overflow-hidden relative z-40">
+        
+        <!-- Sidebar Header -->
+        <div class="px-6 pt-6 pb-4 border-b">
+            <!-- 未登入狀態 -->
+            <div id="header-logged-out" class="flex items-center gap-x-3">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#2C2C54]">
+                    <i class="fa-solid fa-calendar text-white text-2xl"></i>
                 </div>
-                <h1 class="text-xl font-bold text-[#2C2C54] tracking-tight">行事曆</h1>
+                <h1 class="text-2xl font-bold tracking-tighter text-[#2C2C54]">行事曆</h1>
             </div>
 
-            <!-- 月份切換 -->
-            <div class="flex items-center bg-[#4F97E9] rounded-[24px] p-1 shadow-sm ml-2 md:ml-6">
-                <button onclick="prevPeriod()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition" style="color:#ffffff;">
-                    <i class="fa-solid fa-chevron-left"></i>
-                </button>
-                <div id="period-title" class="px-2 md:px-4 font-bold text-[15px] md:text-[16px] text-white min-w-[100px] md:min-w-[120px] text-center cursor-pointer tracking-wide" onclick="goToday()"></div>
-                <button onclick="nextPeriod()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition" style="color:#ffffff;">
-                    <i class="fa-solid fa-chevron-right"></i>
+            <!-- 已登入狀態 -->
+            <div id="header-logged-in" class="hidden items-center gap-x-3 relative group">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#2C2C54] flex-shrink-0">
+                    <i class="fa-solid fa-calendar text-white text-2xl"></i>
+                </div>
+                <img id="header-avatar" class="w-10 h-10 rounded-full object-cover flex-shrink-0" alt="">
+                <div class="flex-1 min-w-0">
+                    <div id="header-name" class="font-bold text-[15px] truncate text-[#2C2C54]"></div>
+                    <div id="header-email" class="text-xs text-slate-500 truncate"></div>
+                </div>
+                <button onclick="signOut()" class="absolute right-0 text-red-500 opacity-0 group-hover:opacity-100 transition p-1 bg-white rounded" title="登出">
+                    <i class="fa-solid fa-sign-out-alt"></i>
                 </button>
             </div>
-            <button onclick="goToday()" class="hidden md:flex px-4 py-1.5 text-sm border border-[#E8E3FF] rounded-2xl items-center text-[#2C2C54] hover:bg-slate-50 transition font-medium">
-                今天
-            </button>
         </div>
 
-        <div class="flex items-center gap-x-3 md:gap-x-4">
-            <!-- 視圖切換膠囊 -->
-            <div class="view-group transform scale-90 md:scale-100 origin-right">
-                <button onclick="switchView('week')" id="btn-week" class="view-btn">週</button>
-                <button onclick="switchView('month')" id="btn-month" class="view-btn active">月</button>
-                <button onclick="switchView('year')" id="btn-year" class="view-btn">年</button>
+        <div class="flex-1 overflow-y-auto min-h-0 flex flex-col">
+            <!-- Calendar Switcher & Editor -->
+            <div id="calendar-lists-container" class="px-5 pt-4 hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-slate-400">我的行事曆本</span>
+                    <div class="flex gap-2">
+                        <button onclick="createNewCalendar()" class="text-[#4F97E9] hover:bg-blue-50 px-2 py-1 rounded text-xs transition font-semibold">
+                            <i class="fa-solid fa-plus"></i> 新增
+                        </button>
+                        <button onclick="toggleEditCalendars()" id="edit-cal-btn" class="text-slate-400 hover:text-slate-600 px-2 py-1 rounded text-xs transition font-semibold">
+                            <i class="fa-solid fa-pen"></i> 編輯
+                        </button>
+                    </div>
+                </div>
+                <div id="my-calendars-list" class="space-y-1 mb-4"></div>
             </div>
-            <!-- Share Button -->
-            <button id="share-btn" onclick="generateShareLink()" class="hidden px-3 py-1.5 md:px-4 md:py-2 text-sm flex items-center gap-x-2 border border-[#4F97E9] text-[#4F97E9] rounded-2xl hover:bg-[#4F97E9] hover:text-white transition">
-                <i class="fa-solid fa-link"></i>
-                <span class="hidden md:inline font-semibold">邀請</span>
-            </button>
+
+            <!-- Add Trip & Google Login -->
+            <div class="px-5 pt-2 pb-6 border-b border-slate-100 border-dashed space-y-2">
+                <button id="add-trip-btn" onclick="openTripModal()" class="hidden w-full flex items-center justify-center gap-x-2 px-4 py-3 text-white rounded-2xl text-sm font-semibold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>新增行程</span>
+                </button>
+
+                <button id="google-login-btn" onclick="signInWithGoogle()" class="w-full flex items-center justify-center gap-x-2 px-4 py-3 bg-white border border-[#E8E3FF] rounded-2xl text-sm font-semibold text-[#2C2C54] shadow-sm hover:bg-slate-50 transition">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5">
+                    <span>使用 Google 登入</span>
+                </button>
+            </div>
+
+            <!-- Recent Upcoming Activities (1 Month) -->
+            <div id="upcoming-container" class="px-5 pt-4 pb-4 hidden flex-1">
+                <div class="text-xs font-bold text-slate-400 mb-3 flex items-center justify-between">
+                    <span>近期活動 (30天內)</span>
+                    <span id="upcoming-count" class="bg-[#EF8275] text-white px-2 py-0.5 rounded-full text-[10px]">0</span>
+                </div>
+                <div id="upcoming-list" class="space-y-2"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Main Workspace -->
-    <div class="flex flex-1 overflow-hidden relative">
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0 relative h-full bg-[#FFFCF2]">
         
-        <!-- Sidebar -->
-        <div id="sidebar-container" class="w-72 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 absolute md:relative h-full z-40 transform -translate-x-full md:translate-x-0 bg-white">
-            <div class="sidebar-inner h-full flex flex-col">
-                <!-- User Info -->
-                <div id="sidebar-auth-area" class="px-6 pt-5 pb-4 border-b">
-                    <div id="header-logged-out" class="flex flex-col gap-3">
-                        <button id="google-login-btn" onclick="signInWithGoogle()" class="w-full flex items-center justify-center gap-x-2 px-4 py-3 bg-white border border-[#E8E3FF] rounded-xl text-sm font-semibold text-[#2C2C54] shadow-sm hover:bg-slate-50 transition">
-                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5">
-                            <span>使用 Google 登入</span>
-                        </button>
-                    </div>
+        <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 z-50 flex items-center justify-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4F97E9]"></div>
+        </div>
 
-                    <div id="header-logged-in" class="hidden items-center gap-x-3 relative group">
-                        <img id="header-avatar" class="w-10 h-10 rounded-full object-cover flex-shrink-0 border" alt="">
-                        <div class="flex-1 min-w-0">
-                            <div id="header-name" class="font-bold text-[14px] truncate text-[#2C2C54]"></div>
-                            <div id="header-email" class="text-[11px] text-slate-500 truncate"></div>
-                        </div>
-                        <button onclick="signOut()" class="text-red-500 p-1 hover:bg-red-50 rounded" title="登出">
-                            <i class="fa-solid fa-sign-out-alt"></i>
-                        </button>
-                    </div>
-                </div>
+        <!-- Header Bar -->
+        <div class="h-16 border-b bg-white px-4 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-x-3 md:gap-x-4">
+                <!-- 自行開關側邊欄按鈕 -->
+                <button onclick="toggleSidebar()" class="w-10 h-10 flex items-center justify-center text-[#2C2C54] hover:bg-slate-100 rounded-xl transition">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
 
-                <!-- Main Actions -->
-                <div class="px-5 pt-4">
-                    <button id="add-trip-btn" onclick="openTripModal()" class="hidden w-full flex items-center justify-center gap-x-2 px-4 py-3 text-white rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>新增行程</span>
+                <div class="flex items-center bg-[#4F97E9] rounded-[24px] p-1 shadow-sm">
+                    <button onclick="prevPeriod()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition" style="color:#ffffff;">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <div id="period-title" class="px-4 font-bold text-[16px] text-white min-w-[120px] text-center cursor-pointer tracking-wide" onclick="goToday()"></div>
+                    <button onclick="nextPeriod()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition" style="color:#ffffff;">
+                        <i class="fa-solid fa-chevron-right"></i>
                     </button>
                 </div>
+                <button onclick="goToday()" class="hidden md:flex px-4 py-1.5 text-sm border border-[#E8E3FF] rounded-2xl items-center gap-x-2 text-[#2C2C54] hover:bg-slate-50 transition font-medium">
+                    今天
+                </button>
+            </div>
 
-                <!-- Upcoming Events (New Feature) -->
-                <div id="upcoming-section" class="px-5 pt-6 hidden flex-shrink-0">
-                    <div class="text-xs font-bold text-[#2C2C54] mb-3 flex items-center gap-2 border-b pb-2">
-                        <i class="fa-solid fa-bolt text-[#EFCB4B]"></i> 近期活動 (30天內)
-                    </div>
-                    <div id="upcoming-list" class="space-y-2 max-h-[150px] overflow-y-auto pr-1"></div>
+            <div class="flex items-center gap-x-4">
+                <div class="view-group hidden sm:flex">
+                    <button onclick="switchView('week')" id="btn-week" class="view-btn">週</button>
+                    <button onclick="switchView('month')" id="btn-month" class="view-btn active">月</button>
+                    <button onclick="switchView('year')" id="btn-year" class="view-btn">年</button>
                 </div>
-
-                <!-- Calendar Switcher -->
-                <div id="calendar-lists-container" class="px-5 pt-6 hidden flex-1 overflow-y-auto">
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="text-xs font-bold text-slate-500">我的行事曆本</span>
-                        <div class="flex gap-1">
-                            <button onclick="toggleEditCalendarMode()" id="edit-cal-btn" class="text-slate-400 hover:text-[#2C2C54] px-2 py-1 rounded text-xs transition">
-                                編輯
-                            </button>
-                            <button onclick="createNewCalendar()" class="text-[#4F97E9] hover:bg-blue-50 px-2 py-1 rounded text-xs transition">
-                                <i class="fa-solid fa-plus mr-1"></i>新增
-                            </button>
-                        </div>
-                    </div>
-                    <div id="my-calendars-list" class="space-y-1 pb-4"></div>
-                </div>
+                <button id="share-btn" onclick="generateShareLink()" class="hidden px-3 md:px-4 py-2 text-sm flex items-center gap-x-2 border border-[#4F97E9] text-[#4F97E9] rounded-2xl hover:bg-[#4F97E9] hover:text-white transition">
+                    <i class="fa-solid fa-link"></i>
+                    <span class="hidden md:inline font-semibold">邀請</span>
+                </button>
             </div>
         </div>
 
-        <!-- Sidebar Mobile Overlay -->
-        <div id="mobile-sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 hidden md:hidden transition-opacity"></div>
-
-        <!-- Content Area -->
-        <div class="flex-1 flex flex-col min-w-0 relative h-full bg-[#FFFCF2]">
-            <div id="loading-overlay" class="hidden absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex items-center justify-center">
-                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#4F97E9]"></div>
-            </div>
-
-            <div class="flex-1 p-2 md:p-4 overflow-hidden flex flex-col h-full">
-                <!-- 容器改為 h-full 讓內部去填滿 -->
-                <div class="w-full h-full mx-auto flex flex-col bg-white rounded-xl shadow-sm border border-[#E8E3FF] overflow-hidden" id="calendar-content"></div>
-            </div>
+        <div class="flex-1 p-2 sm:p-4 overflow-hidden flex flex-col">
+            <div class="max-w-[1400px] mx-auto w-full h-full flex flex-col" id="calendar-content"></div>
         </div>
     </div>
 
     <!-- Right Side Detail Panel -->
     <div id="day-detail-panel" class="fixed right-0 top-0 bottom-0 w-full md:w-[380px] bg-white shadow-2xl border-l transform translate-x-full transition-transform duration-300 z-50 flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-white z-10">
-            <div class="font-bold text-[18px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
+            <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
             <button onclick="closeDayDetail()" class="text-slate-400 hover:text-slate-600 text-xl px-2 transition-colors">
                 <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-[#FFFCF2]" id="detail-events-list"></div>
         <div class="p-5 bg-white border-t z-10">
-            <button onclick="openTripModalFromDetail()" class="w-full py-3.5 text-white rounded-xl font-bold text-[15px] shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
-                在此日期新增行程
-            </button>
+            <button onclick="openTripModalFromDetail()" class="w-full py-3.5 text-white rounded-[14px] font-bold text-[15px] shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">在此日期新增行程</button>
         </div>
     </div>
 
-    <!-- 霧面背景 Overlay (點擊外部關閉) -->
-    <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/30 backdrop-blur-[2px] z-40 hidden transition-opacity duration-300 cursor-pointer"></div>
+    <!-- 霧面背景 Overlay -->
+    <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 hidden transition-opacity duration-300 cursor-pointer"></div>
 
-    <!-- Trip Modal (行程編輯) -->
+    <!-- Trip Modal -->
     <div id="trip-modal" onclick="if (event.target.id === 'trip-modal') closeTripModal()" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
-        <div onclick="event.stopImmediatePropagation()" class="bg-white w-full md:w-[480px] md:rounded-2xl shadow-2xl border md:border-0 rounded-t-2xl max-h-[92vh] overflow-y-auto">
-            <div class="px-5 pt-4 pb-3 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
-                <h3 id="modal-title" class="text-xl font-bold" style="color:#2C2C54;">新增行程</h3>
+        <div onclick="event.stopImmediatePropagation()" class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto">
+            <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
+                <h3 id="modal-title" class="text-2xl font-semibold text-[#2C2C54]">新增行程</h3>
                 <button onclick="closeTripModal()" class="text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
             </div>
-
             <form id="trip-form" onsubmit="handleTripFormSubmit(event)" class="p-5 space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1.5">行程標題 <span class="text-red-500">*</span></label>
-                    <input type="text" id="trip-title" required class="w-full px-3 py-2 border border-[#E8E3FF] rounded-lg focus:border-[#4F97E9] focus:ring-1 focus:ring-[#4F97E9] outline-none transition text-sm">
+                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">行程標題 <span class="text-red-500">*</span></label>
+                    <input type="text" id="trip-title" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] focus:ring-1 focus:ring-[#4F97E9] outline-none transition" placeholder="例如：產品開發會議">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1.5">開始日期</label>
-                        <input type="date" id="start-date" required class="w-full px-3 py-2 border border-[#E8E3FF] rounded-lg focus:border-[#4F97E9] outline-none text-sm">
+                        <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">開始日期</label>
+                        <input type="date" id="start-date" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1.5">開始時間 (選填)</label>
-                        <input type="time" id="start-time" class="w-full px-3 py-2 border border-[#E8E3FF] rounded-lg focus:border-[#4F97E9] outline-none text-sm">
+                        <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">開始時間 (留白為全天)</label>
+                        <input type="time" id="start-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1.5">結束日期</label>
-                        <input type="date" id="end-date" class="w-full px-3 py-2 border border-[#E8E3FF] rounded-lg focus:border-[#4F97E9] outline-none text-sm">
+                        <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">結束日期</label>
+                        <input type="date" id="end-date" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1.5">結束時間 (選填)</label>
-                        <input type="time" id="end-time" class="w-full px-3 py-2 border border-[#E8E3FF] rounded-lg focus:border-[#4F97E9] outline-none text-sm">
+                        <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">結束時間</label>
+                        <input type="time" id="end-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1.5">描述 / 備註</label>
-                    <textarea id="trip-desc" rows="2" class="w-full px-3 py-2 border border-[#E8E3FF] rounded-lg focus:border-[#4F97E9] outline-none resize-none text-sm"></textarea>
+                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">地點</label>
+                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-2">顏色標記</label>
-                    <div class="flex flex-wrap gap-2" id="color-picker"></div>
+                    <label class="block text-sm font-semibold mb-2 text-[#2C2C54]">顏色標記</label>
+                    <div class="flex flex-wrap gap-3" id="color-picker"></div>
                 </div>
-                <div class="flex gap-3 pt-4 border-t mt-4">
-                    <button type="button" id="delete-trip-btn" onclick="deleteTrip()" class="hidden w-10 flex items-center justify-center border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                    <button type="button" onclick="closeTripModal()" class="flex-1 py-2 border border-[#E8E3FF] rounded-lg text-slate-600 hover:bg-slate-50 transition-colors font-medium text-sm">取消</button>
-                    <button type="submit" id="save-trip-btn" class="flex-1 py-2 text-white rounded-lg font-bold shadow-sm hover:opacity-90 transition-opacity text-sm" style="background:#4F97E9;">儲存</button>
+                <div class="flex gap-3 pt-3 sticky bottom-0 bg-white pb-2 border-t mt-4">
+                    <button type="button" id="delete-trip-btn" onclick="deleteTrip()" class="hidden w-12 flex items-center justify-center py-3 border border-red-200 text-red-500 rounded-2xl hover:bg-red-50 transition-colors"><i class="fa-solid fa-trash"></i></button>
+                    <button type="button" onclick="closeTripModal()" class="flex-1 py-3 border border-[#E8E3FF] rounded-2xl text-[#2C2C54] hover:bg-slate-50 transition-colors font-medium">取消</button>
+                    <button type="submit" id="save-trip-btn" class="flex-1 py-3.5 text-white rounded-2xl font-semibold shadow-sm hover:opacity-90 transition-opacity bg-[#4F97E9]">儲存</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
-        // ==================== Supabase Setup ====================
+        // ==================== Supabase Client ====================
         const SUPABASE_URL = 'https://qemfwpdkhbbqnxrcmuyi.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlbWZ3cGRraGJicW54cmNtdXlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNjQzNTUsImV4cCI6MjA5Nzk0MDM1NX0.e66XIq1JTjHcQRUAWkKDZKA3pFHOsRX_pLbS-yK74Gg';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -245,74 +228,87 @@
         let currentUser = null;
         let myCalendars = [];
         let currentCalendarId = null;
-        let isEditCalendarMode = false; // 控制行事曆編輯模式
+        let isEditingCalendars = false;
 
         function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden'); }
         function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
 
-        // ==================== Sidebar & Auth Logic ====================
-        let isSidebarOpen = window.innerWidth >= 768;
-        
+        // ==================== Core / Logic ====================
         function toggleSidebar() {
-            const container = document.getElementById('sidebar-container');
-            const overlay = document.getElementById('mobile-sidebar-overlay');
-            if(window.innerWidth < 768) {
-                // 手機版滑動
-                container.classList.toggle('-translate-x-full');
-                overlay.classList.toggle('hidden');
+            const sb = document.getElementById('sidebar');
+            if (sb.classList.contains('w-72')) {
+                sb.classList.replace('w-72', 'w-0');
             } else {
-                // 桌機版縮放寬度
-                container.classList.toggle('sidebar-collapsed');
+                sb.classList.replace('w-0', 'w-72');
             }
         }
 
         async function signInWithGoogle() {
             try {
-                await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: 'https://austing2021-debug.github.io/calendar/' } });
+                const { error } = await supabaseClient.auth.signInWithOAuth({
+                    provider: 'google', options: { redirectTo: 'https://austing2021-debug.github.io/calendar/' }
+                });
+                if (error) throw error;
             } catch (error) { alert('Google 登入失敗：' + error.message); }
         }
 
-        async function signOut() {
-            await supabaseClient.auth.signOut();
-            location.reload();
-        }
+        async function signOut() { await supabaseClient.auth.signOut(); location.reload(); }
 
         async function checkUserAndInitialize() {
             showLoading();
             const { data: { user } } = await supabaseClient.auth.getUser();
-            
-            const loggedOut = document.getElementById('header-logged-out');
-            const loggedIn = document.getElementById('header-logged-in');
-            
             if (user) {
                 currentUser = user;
-                loggedOut.classList.add('hidden');
-                loggedIn.classList.remove('hidden');
-                loggedIn.classList.add('flex');
-                
+                document.getElementById('google-login-btn').classList.add('hidden');
+                document.getElementById('header-logged-out').classList.add('hidden');
+                document.getElementById('header-logged-in').classList.remove('hidden');
+                document.getElementById('header-logged-in').classList.add('flex');
                 document.getElementById('add-trip-btn').classList.remove('hidden');
                 document.getElementById('calendar-lists-container').classList.remove('hidden');
+                document.getElementById('upcoming-container').classList.remove('hidden');
                 document.getElementById('share-btn').classList.remove('hidden');
-                document.getElementById('upcoming-section').classList.remove('hidden');
                 
                 document.getElementById('header-name').textContent = user.user_metadata?.full_name || user.email;
                 document.getElementById('header-email').textContent = user.email;
                 if (user.user_metadata?.avatar_url) document.getElementById('header-avatar').src = user.user_metadata.avatar_url;
 
+                await checkJoinRequest();
                 await loadCalendars();
             } else {
-                loggedOut.classList.remove('hidden');
-                loggedIn.classList.add('hidden');
+                document.getElementById('google-login-btn').classList.remove('hidden');
+                document.getElementById('header-logged-out').classList.remove('hidden');
+                document.getElementById('header-logged-out').classList.add('flex');
+                document.getElementById('header-logged-in').classList.add('hidden');
                 hideLoading();
                 renderCurrentView();
             }
+        }
+
+        async function checkJoinRequest() {
+            const joinId = new URLSearchParams(window.location.search).get('join');
+            if (joinId && currentUser) {
+                try {
+                    const { data: existing } = await supabaseClient.from('calendar_members').select('id').eq('calendar_id', joinId).eq('user_id', currentUser.id).single();
+                    if (!existing) {
+                        await supabaseClient.from('calendar_members').insert({ calendar_id: joinId, user_id: currentUser.id, role: 'member' });
+                        alert('成功加入共用行事曆！');
+                    }
+                } catch(e) {}
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        async function generateShareLink() {
+            if (!currentCalendarId) return;
+            const link = `${window.location.origin}${window.location.pathname}?join=${currentCalendarId}`;
+            try { await navigator.clipboard.writeText(link); alert('🎉 共用連結已複製！傳送給朋友即可邀請他們加入。');
+            } catch (err) { prompt('請手動複製以下連結分享：', link); }
         }
 
         // ==================== Calendar Management ====================
         async function loadCalendars() {
             if (!currentUser) return;
             const { data } = await supabaseClient.from('calendar_members').select('calendar_id, role, calendars(id, name)').eq('user_id', currentUser.id).order('created_at', { ascending: true });
-            
             if (data && data.length > 0) {
                 myCalendars = data.map(d => ({ ...d.calendars, role: d.role }));
                 if (!currentCalendarId || !myCalendars.find(c => c.id === currentCalendarId)) currentCalendarId = myCalendars[0].id;
@@ -328,14 +324,6 @@
             await fetchTrips();
         }
 
-        function toggleEditCalendarMode() {
-            isEditCalendarMode = !isEditCalendarMode;
-            const btn = document.getElementById('edit-cal-btn');
-            btn.classList.toggle('text-[#4F97E9]', isEditCalendarMode);
-            btn.classList.toggle('bg-blue-50', isEditCalendarMode);
-            renderCalendarListUI();
-        }
-
         async function createNewCalendar() {
             const name = prompt("請輸入新行事曆名稱：");
             if (!name) return;
@@ -348,48 +336,57 @@
             } else { hideLoading(); }
         }
 
+        function toggleEditCalendars() {
+            isEditingCalendars = !isEditingCalendars;
+            const btn = document.getElementById('edit-cal-btn');
+            btn.classList.toggle('text-[#EF8275]', isEditingCalendars);
+            btn.classList.toggle('text-slate-400', !isEditingCalendars);
+            renderCalendarListUI();
+        }
+
         async function renameCalendar(id, oldName) {
-            const newName = prompt('請輸入新名稱', oldName);
-            if(!newName || newName === oldName) return;
-            showLoading();
-            await supabaseClient.from('calendars').update({name: newName}).eq('id', id);
-            await loadCalendars();
+            const newName = prompt("請輸入行事曆新名稱：", oldName);
+            if (newName && newName !== oldName) {
+                showLoading();
+                await supabaseClient.from('calendars').update({ name: newName }).eq('id', id);
+                await loadCalendars();
+            }
         }
 
         async function deleteCalendar(id) {
-            if(myCalendars.length <= 1) return alert('必須保留至少一個行事曆！');
-            if(confirm('確定要永久刪除這個行事曆嗎？其下的所有行程將被永久刪除！')) {
+            if (myCalendars.length <= 1) return alert('必須保留至少一個行事曆！');
+            if (confirm('確定要永久刪除此行事曆及裡面所有行程嗎？')) {
                 showLoading();
                 await supabaseClient.from('calendars').delete().eq('id', id);
-                if(currentCalendarId === id) currentCalendarId = myCalendars[0]?.id;
+                if (currentCalendarId === id) currentCalendarId = myCalendars.find(c => c.id !== id)?.id;
                 await loadCalendars();
             }
+        }
+
+        function switchCalendar(calId) {
+            if (isEditingCalendars) return;
+            currentCalendarId = calId;
+            renderCalendarListUI();
+            showLoading();
+            fetchTrips();
         }
 
         function renderCalendarListUI() {
             const listEl = document.getElementById('my-calendars-list');
             listEl.innerHTML = myCalendars.map(cal => `
-                <div class="flex items-center px-3 py-2 rounded-xl transition-colors ${cal.id === currentCalendarId ? 'bg-[#4F97E9]/10 text-[#4F97E9] font-medium border border-[#4F97E9]/20' : 'hover:bg-slate-50 text-slate-700'}">
+                <div class="flex items-center px-3 py-2 rounded-xl transition-colors ${cal.id === currentCalendarId ? 'bg-[#4F97E9]/10 border border-[#4F97E9]/20' : 'hover:bg-slate-100'}">
                     <div class="flex-1 flex items-center cursor-pointer" onclick="switchCalendar('${cal.id}')">
-                        <div class="w-2.5 h-2.5 rounded-full mr-3 ${cal.id === currentCalendarId ? 'bg-[#4F97E9]' : 'bg-slate-300'}"></div>
-                        <span class="truncate text-[13px]">${cal.name}</span>
+                        <div class="w-3 h-3 rounded-full mr-3 ${cal.id === currentCalendarId ? 'bg-[#4F97E9]' : 'bg-slate-300'}"></div>
+                        <span class="truncate text-sm font-medium ${cal.id === currentCalendarId ? 'text-[#4F97E9]' : 'text-slate-700'}">${cal.name}</span>
                     </div>
-                    ${isEditCalendarMode && cal.role === 'owner' ? `
-                        <div class="flex gap-2 ml-2">
-                            <button onclick="renameCalendar('${cal.id}', '${cal.name}')" class="text-slate-400 hover:text-blue-500"><i class="fa-solid fa-pen text-[11px]"></i></button>
-                            <button onclick="deleteCalendar('${cal.id}')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-[11px]"></i></button>
+                    ${isEditingCalendars && cal.role === 'owner' ? `
+                        <div class="flex items-center gap-2 text-slate-400 ml-2">
+                            <i class="fa-solid fa-pen text-[11px] cursor-pointer hover:text-[#4F97E9]" onclick="renameCalendar('${cal.id}', '${cal.name}')"></i>
+                            <i class="fa-solid fa-trash text-[11px] cursor-pointer hover:text-red-500" onclick="deleteCalendar('${cal.id}')"></i>
                         </div>
                     ` : ''}
                 </div>
             `).join('');
-        }
-
-        function switchCalendar(calId) {
-            if(isEditCalendarMode) return;
-            currentCalendarId = calId;
-            renderCalendarListUI();
-            showLoading();
-            fetchTrips();
         }
 
         // ==================== Trips CRUD ====================
@@ -399,36 +396,40 @@
         async function fetchTrips() {
             if (!currentCalendarId) return hideLoading();
             const { data } = await supabaseClient.from('trips').select('*').eq('calendar_id', currentCalendarId);
-            if (data) {
-                trips = data.map(t => ({
-                    id: t.id, title: t.title, startDate: t.start_date, endDate: t.end_date,
-                    startTime: t.start_time, endTime: t.end_time, location: t.location,
-                    description: t.description, color: t.color
-                }));
-            } else { trips = []; }
+            trips = data ? data.map(t => ({
+                id: t.id, title: t.title, startDate: t.start_date, endDate: t.end_date,
+                startTime: t.start_time, endTime: t.end_time, location: t.location,
+                description: t.description, color: t.color
+            })) : [];
+            
             hideLoading();
             renderCurrentView();
             renderUpcoming();
-            
             if (!document.getElementById('day-detail-panel').classList.contains('translate-x-full')) showDayDetail(selectedDate);
         }
 
         function renderUpcoming() {
             const c = document.getElementById('upcoming-list');
-            if (!c || !currentUser) return;
+            const countEl = document.getElementById('upcoming-count');
+            if (!c || !countEl || !currentUser) return;
+            
             const today = new Date().toISOString().split('T')[0];
-            const next30 = new Date(); next30.setDate(next30.getDate() + 30);
-            const limitStr = next30.toISOString().split('T')[0];
+            const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
             
-            const future = trips.filter(t => t.startDate >= today && t.startDate <= limitStr).sort((a,b) => a.startDate.localeCompare(b.startDate)).slice(0, 5);
-            if (future.length === 0) { c.innerHTML = `<div class="text-xs text-slate-400 py-2">近期無行程</div>`; return; }
+            const future = trips.filter(t => t.startDate >= today && t.startDate <= nextMonth)
+                                .sort((a,b) => a.startDate.localeCompare(b.startDate));
+            countEl.textContent = future.length;
             
-            c.innerHTML = future.map(t => `
-                <div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="flex items-start gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100">
-                    <div class="w-1.5 h-1.5 mt-1.5 rounded-full flex-shrink-0" style="background:${t.color||'#4F97E9'}"></div>
-                    <div class="min-w-0 flex-1">
-                        <div class="text-[12px] font-bold text-slate-700 truncate">${t.title}</div>
-                        <div class="text-[10px] text-slate-400">${t.startDate.slice(5).replace('-','/')} ${t.startTime||''}</div>
+            if (future.length === 0) {
+                c.innerHTML = `<div class="px-3 py-4 text-xs text-slate-400 text-center bg-slate-50 rounded-xl">未來一個月內無行程</div>`;
+                return;
+            }
+            c.innerHTML = future.slice(0, 8).map(t => `
+                <div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="px-3 py-2 hover:bg-slate-50 rounded-xl cursor-pointer flex gap-3 text-sm border border-[#E8E3FF] transition shadow-sm bg-white">
+                    <div class="w-1.5 h-1.5 mt-2 rounded-full flex-shrink-0" style="background:${t.color||'#4F97E9'}"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold truncate text-[#2C2C54]">${t.title}</div>
+                        <div class="text-[11px] font-medium text-slate-400 mt-0.5">${t.startDate.slice(5).replace('-','/')} ${t.startTime || ''}</div>
                     </div>
                 </div>
             `).join('');
@@ -436,81 +437,101 @@
 
         async function handleTripFormSubmit(e) {
             e.preventDefault();
-            const title = document.getElementById('trip-title').value.trim();
+            if (!currentCalendarId || !currentUser) return alert('請先登入');
+            
             const dbData = {
-                calendar_id: currentCalendarId, title: title,
+                calendar_id: currentCalendarId, title: document.getElementById('trip-title').value.trim(),
                 start_date: document.getElementById('start-date').value,
                 end_date: document.getElementById('end-date').value || document.getElementById('start-date').value,
                 start_time: document.getElementById('start-time').value || null,
                 end_time: document.getElementById('end-time').value || null,
+                location: document.getElementById('location').value.trim(),
                 description: document.getElementById('trip-desc').value.trim(),
                 color: selectedColor, created_by: currentUser.id
             };
+
             showLoading();
             if (editingTripId) await supabaseClient.from('trips').update(dbData).eq('id', editingTripId);
             else await supabaseClient.from('trips').insert(dbData);
-            closeTripModal(); fetchTrips();
+            
+            closeTripModal();
+            fetchTrips();
         }
 
         async function deleteTrip() {
-            if (confirm('確定刪除？')) { showLoading(); await supabaseClient.from('trips').delete().eq('id', editingTripId); closeTripModal(); fetchTrips(); }
+            if (!editingTripId || !confirm('確定要永久刪除此行程嗎？')) return;
+            showLoading();
+            await supabaseClient.from('trips').delete().eq('id', editingTripId);
+            closeTripModal();
+            fetchTrips();
         }
 
-        // ==================== Render Core (Month, Week, Year) ====================
+        // ==================== Render Core ====================
         let currentDate = new Date();
-        let currentView = 'month';
+        let currentView = 'week';
         let selectedDate = null;
         let selectedColor = '#4F97E9';
         
-        const NEW_COLORS = ['#EF8275', '#F8BD5E', '#F3E775', '#8FEC6F', '#4F97E9', '#6B8EF8', '#B88BF7', '#2C2C54'];
+        const NEW_COLORS = ['#FF6060', '#F8BD5E', '#F3E775', '#8FEC6F', '#76D2EE', '#6B8EF8', '#B88BF7'];
         const WEEKDAYS = ['週日','週一','週二','週三','週四','週五','週六'];
+        const MONTH_NAMES = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
         const TAIWAN_HOLIDAYS = { "2026-01-01":"元旦","2026-02-17":"除夕","2026-02-18":"春節","2026-04-03":"兒童節","2026-04-04":"清明節","2026-06-19":"端午節","2026-09-25":"中秋節","2026-10-10":"國慶日" };
 
         function getHoliday(dateStr) { return TAIWAN_HOLIDAYS[dateStr] || null; }
         
-        // 取得農曆 (使用 lunar-javascript 套件)
-        function getExactLunar(dateStr) {
+        // 真實農曆計算 (格式: M.D)
+        function getShortLunar(dateStr) { 
             try {
                 const d = new Date(dateStr);
                 const lunar = Lunar.fromDate(d);
                 return `${lunar.getMonth()}.${lunar.getDay()}`; 
-            } catch(e) { return ''; }
+            } catch(e) {
+                const d = new Date(dateStr); return `${d.getMonth()+1}.${d.getDate()}`;
+            }
         }
 
         function switchView(view) {
             currentView = view;
-            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`btn-${view}`).classList.add('active');
+            ['week','month','year'].forEach(v => document.getElementById(`btn-${v}`).classList.toggle('active', view===v));
             renderCurrentView();
         }
 
         function renderCurrentView() {
-            const container = document.getElementById('calendar-content');
-            container.innerHTML = '';
-            if (currentView === 'month') renderMonthView(container);
-            else if (currentView === 'week') renderWeekView(container);
-            else renderYearView(container);
+            const c = document.getElementById('calendar-content');
+            c.innerHTML = '';
+            if (currentView === 'month') renderMonthView(c);
+            else if (currentView === 'week') renderWeekView(c);
+            else renderYearView(c);
         }
 
-        // --- 1. 月曆視圖 (無間距、週末底色) ---
+        function getTripsForDate(dateStr) { return trips.filter(t => t.startDate <= dateStr && (!t.endDate || t.endDate >= dateStr)).sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')); }
+
+        function createTripPill(trip) {
+            const p = document.createElement('div');
+            p.className = `event-pill truncate transition hover:opacity-80`;
+            p.style.backgroundColor = trip.color || '#4F97E9';
+            p.style.color = '#fff';
+            p.textContent = trip.title;
+            p.onclick = e => { e.stopPropagation(); openTripModal(trip); };
+            return p;
+        }
+
+        // ==================== 月曆視圖 ====================
         function renderMonthView(container) {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
+            const year = currentDate.getFullYear(), month = currentDate.getMonth();
             document.getElementById('period-title').innerHTML = `${year} 年 ${month + 1} 月`;
 
             const wrapper = document.createElement('div');
-            wrapper.className = 'flex flex-col h-full overflow-hidden';
-            
-            let headerHTML = `<div class="grid grid-cols-7 border-b border-[#E8E3FF] flex-shrink-0">`;
-            WEEKDAYS.forEach((d, i) => {
-                let colorClass = (i === 0) ? 'text-red-500' : (i === 6 ? 'text-blue-500' : 'text-slate-500');
-                headerHTML += `<div class="text-center text-[12px] py-1.5 font-bold ${colorClass}">${d}</div>`;
-            });
-            headerHTML += `</div><div id="month-grid" class="flex-1 grid grid-cols-7 grid-rows-6"></div>`;
-            wrapper.innerHTML = headerHTML;
+            wrapper.className = 'flex-1 flex flex-col h-full min-h-0 border-l border-t border-[#E8E3FF] bg-white rounded-lg shadow-sm overflow-hidden';
+            wrapper.innerHTML = `
+                <div class="grid grid-cols-7 flex-shrink-0 bg-white">
+                    ${WEEKDAYS.map(d => `<div class="text-center text-[13px] py-1.5 text-slate-500 font-bold border-r border-b border-[#E8E3FF]">${d}</div>`).join('')}
+                </div>
+                <div id="month-grid" class="flex-1 grid grid-cols-7 grid-rows-6 min-h-0"></div>
+            `;
             container.appendChild(wrapper);
-            
             const grid = wrapper.querySelector('#month-grid');
+
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const daysInPrev = new Date(year, month, 0).getDate();
@@ -518,75 +539,54 @@
             for (let i = 0; i < 42; i++) {
                 let dayNum, cellDateStr, isCurrent = true, cellY = year, cellM = month;
                 if (i < firstDay) {
-                    dayNum = daysInPrev - firstDay + i + 1; cellM = month - 1; cellY = month;
-                    if(cellM < 0) { cellM = 11; cellY--; }
-                    isCurrent = false;
+                    dayNum = daysInPrev - firstDay + i + 1; cellM = month - 1 < 0 ? 11 : month - 1; cellY = month - 1 < 0 ? year - 1 : year; isCurrent = false;
                 } else if (i >= firstDay + daysInMonth) {
-                    dayNum = i - (firstDay + daysInMonth) + 1; cellM = month + 1; cellY = month;
-                    if(cellM > 11) { cellM = 0; cellY++; }
-                    isCurrent = false;
+                    dayNum = i - (firstDay + daysInMonth) + 1; cellM = month + 1 > 11 ? 0 : month + 1; cellY = month + 1 > 11 ? year + 1 : year; isCurrent = false;
                 } else {
                     dayNum = i - firstDay + 1;
+                    cellDateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
                 }
-                cellDateStr = `${cellY}-${String(cellM+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
-                
-                const dObj = new Date(cellDateStr);
-                const dayOfWeek = dObj.getDay();
-                
-                // 背景色邏輯
-                let bgClass = 'bg-white';
-                if (!isCurrent) bgClass = 'bg-[#F0F8FF] text-slate-400'; // 非當月淡藍
-                else if (dayOfWeek === 0 || dayOfWeek === 6) bgClass = 'bg-[#F8D4D4]'; // 當月週末
-                
+                if (!cellDateStr) cellDateStr = `${cellY}-${String(cellM+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+
                 const cell = document.createElement('div');
-                cell.className = `calendar-cell ${bgClass} flex flex-col relative overflow-hidden cursor-pointer`;
+                cell.className = `calendar-cell flex flex-col p-1.5 overflow-hidden`;
                 
-                const todayStr = new Date().toISOString().split('T')[0];
-                if (cellDateStr === todayStr) cell.style.boxShadow = 'inset 0 0 0 2px #4F97E9';
+                const isWeekend = (i % 7 === 0 || i % 7 === 6);
+                if (!isCurrent) {
+                    cell.style.backgroundColor = '#E8F0FE';
+                    cell.classList.add('opacity-70');
+                } else if (isWeekend) {
+                    cell.style.backgroundColor = '#F8D4D4';
+                } else {
+                    cell.style.backgroundColor = '#FFFFFF';
+                }
 
-                // 日期數字顏色
-                let numColor = 'text-[#2C2C54]';
-                if(dayOfWeek === 0) numColor = 'text-red-500';
-                else if (dayOfWeek === 6) numColor = 'text-blue-500';
+                if (cellDateStr === new Date().toISOString().split('T')[0]) cell.style.boxShadow = 'inset 0 0 0 2px #4F97E9';
 
-                const holiday = getHoliday(cellDateStr);
-                let badgeHtml = holiday 
-                    ? `<span class="holiday-badge">${holiday}</span>` 
-                    : `<span class="lunar-badge">${getExactLunar(cellDateStr)}</span>`;
+                const holiday = getHoliday(cellDateStr), lunarTxt = getShortLunar(cellDateStr);
+                let badgeHtml = holiday ? `<span class="holiday-badge">${holiday}</span>` : `<span class="lunar-badge">${lunarTxt}</span>`;
                 
-                cell.innerHTML = `<div class="flex items-center justify-between mb-1">
-                                    <span class="font-bold text-[15px] ${numColor}">${dayNum}</span>${badgeHtml}
-                                  </div>`;
-
-                const dayTrips = trips.filter(t => t.startDate <= cellDateStr && (!t.endDate || t.endDate >= cellDateStr)).sort((a,b) => (a.startTime||'').localeCompare(b.startTime||''));
-                const tripsWrap = document.createElement('div');
-                tripsWrap.className = 'flex-1 flex flex-col gap-y-1 overflow-hidden mt-0.5';
+                cell.innerHTML = `
+                    <div class="flex items-start justify-between mb-1 flex-shrink-0">
+                        <span class="font-bold text-[16px] text-[#2C2C54]">${dayNum}</span>${badgeHtml}
+                    </div>
+                    <div class="trips-wrap flex-1 flex flex-col gap-y-0.5 overflow-hidden mt-0.5"></div>
+                `;
                 
-                dayTrips.slice(0, 4).forEach(t => {
-                    const pill = document.createElement('div');
-                    pill.className = `event-pill truncate text-[#2C2C54] hover:opacity-80`;
-                    pill.style.background = (t.color||'#4F97E9') + '25';
-                    pill.style.borderLeft = `3px solid ${t.color||'#4F97E9'}`;
-                    pill.innerHTML = `${t.startTime ? t.startTime+' ' : ''}${t.title}`;
-                    pill.onclick = e => { e.stopPropagation(); openTripModal(t); };
-                    tripsWrap.appendChild(pill);
-                });
-                
-                if (dayTrips.length > 4) tripsWrap.innerHTML += `<div class="text-[10px] text-slate-500 pl-1 font-bold">+${dayTrips.length-4} 更多</div>`;
-                cell.appendChild(tripsWrap);
+                const dayTrips = getTripsForDate(cellDateStr);
+                const wrap = cell.querySelector('.trips-wrap');
+                dayTrips.slice(0, 3).forEach(trip => wrap.appendChild(createTripPill(trip)));
+                if (dayTrips.length > 3) wrap.innerHTML += `<div class="text-[10px] text-slate-500 pl-1 font-bold mt-auto">+${dayTrips.length-3} 更多</div>`;
 
-                cell.onclick = (e) => { if (e.target.closest('.event-pill') || !currentUser) return; showDayDetail(cellDateStr); };
+                cell.onclick = (e) => { if (!e.target.closest('.event-pill') && currentUser) showDayDetail(cellDateStr); };
                 grid.appendChild(cell);
             }
         }
 
-        // --- 2. 週曆視圖 (專業網格) ---
+        // ==================== 週曆視圖 (完全重構，對齊圖1) ====================
         function renderWeekView(container) {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            const day = currentDate.getDate();
-            const sunday = new Date(year, month, day);
-            sunday.setDate(sunday.getDate() - sunday.getDay());
+            const year = currentDate.getFullYear(), month = currentDate.getMonth(), day = currentDate.getDate();
+            const sunday = new Date(year, month, day); sunday.setDate(sunday.getDate() - sunday.getDay());
             
             const dates = [];
             for (let i = 0; i < 7; i++) {
@@ -595,168 +595,173 @@
             }
             document.getElementById('period-title').innerHTML = `${dates[0].slice(5).replace('-','/')} ~ ${dates[6].slice(5).replace('-','/')}`;
             
-            const wrapper = document.createElement('div');
-            wrapper.className = 'flex flex-col h-full bg-white';
+            let headerHTML = '', allDayHTML = '', gridHTML = '';
             
-            // 頂部標題區 (週日=紅, 週六=藍)
-            let headerHTML = `<div class="grid grid-cols-[50px_repeat(7,1fr)] border-b border-[#E8E3FF] flex-shrink-0">
-                                <div class="border-r border-[#E8E3FF] bg-slate-50"></div>`;
-            dates.forEach((dStr, i) => {
-                let colorClass = (i === 0) ? 'text-red-500' : (i === 6 ? 'text-blue-500' : 'text-[#2C2C54]');
-                headerHTML += `<div class="text-center py-2 border-r border-[#E8E3FF] relative">
-                                  <div class="text-[11px] text-slate-500">${WEEKDAYS[i]}</div>
-                                  <div class="text-[20px] font-bold ${colorClass} leading-tight">${dStr.slice(8)}</div>
-                                  <div class="text-[10px] text-slate-400">${getExactLunar(dStr)}</div>
-                               </div>`;
-            });
-            headerHTML += `</div>`;
-            
-            // 全天行程區塊
-            headerHTML += `<div class="grid grid-cols-[50px_repeat(7,1fr)] border-b border-[#E8E3FF] min-h-[35px] flex-shrink-0">
-                             <div class="border-r border-[#E8E3FF] flex items-center justify-center text-[10px] text-slate-500 bg-slate-50">全天</div>`;
-            dates.forEach(dStr => {
-                const allDays = trips.filter(t => !t.startTime && t.startDate <= dStr && (!t.endDate || t.endDate >= dStr));
-                const hol = getHoliday(dStr);
+            // Header (週、日、農曆) & All Day
+            dates.forEach((dateStr, idx) => {
+                const dObj = new Date(dateStr), dayNum = dObj.getDate();
+                const lunarTxt = getShortLunar(dateStr);
+                const dayColor = idx === 0 ? 'text-red-500' : (idx === 6 ? 'text-blue-500' : 'text-[#2C2C54]');
                 
-                let cellHtml = `<div class="border-r border-[#E8E3FF] p-1 flex flex-col gap-1 cursor-pointer" onclick="showDayDetail('${dStr}')">`;
-                if(hol) cellHtml += `<div class="bg-red-500 text-white text-[10px] px-1 rounded truncate font-bold">${hol}</div>`;
-                allDays.forEach(t => {
-                    cellHtml += `<div onclick="event.stopPropagation(); openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="text-[10px] text-white px-1 rounded truncate font-medium hover:opacity-80" style="background:${t.color||'#4F97E9'}">${t.title}</div>`;
-                });
-                cellHtml += `</div>`;
-                headerHTML += cellHtml;
+                headerHTML += `
+                    <div class="flex flex-col items-center justify-center py-2 border-r border-[#E8E3FF]">
+                        <span class="text-xs text-slate-500 font-bold">${WEEKDAYS[idx]}</span>
+                        <span class="text-xl font-black ${dayColor} mt-1">${dayNum}</span>
+                        <span class="text-[10px] font-bold text-slate-400 mt-1">${lunarTxt}</span>
+                    </div>
+                `;
+
+                const allTrips = getTripsForDate(dateStr);
+                const allDayTrips = allTrips.filter(t => !t.startTime);
+                
+                let pills = allDayTrips.map(t => `<div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="text-[11px] px-1.5 py-0.5 rounded text-white font-bold cursor-pointer truncate mb-1" style="background:${t.color||'#EF8275'}">${t.title}</div>`).join('');
+                if(getHoliday(dateStr)) pills = `<div class="text-[11px] px-1.5 py-0.5 rounded text-white font-bold bg-[#EF8275] mb-1">${getHoliday(dateStr)}</div>` + pills;
+
+                allDayHTML += `<div class="border-r border-[#E8E3FF] p-1 overflow-hidden" onclick="showDayDetail('${dateStr}')">${pills}</div>`;
             });
-            headerHTML += `</div>`;
-            
-            // 24小時網格區 (可滾動)
-            let gridHTML = `<div class="flex-1 overflow-y-auto relative"><div class="grid grid-cols-[50px_repeat(7,1fr)] relative">`;
-            
-            // 時間軸
-            gridHTML += `<div class="border-r border-[#E8E3FF] bg-slate-50">`;
+
+            // 24 Hour Slots
+            const timeLabels = [];
             for(let i=0; i<24; i++) {
-                let label = i < 12 ? `上午${i}` : (i===12 ? `下午12` : `下午${i-12}`);
-                gridHTML += `<div class="week-time-row text-right pr-1 text-[10px] text-slate-400 pt-1">${i===0?'':label}</div>`;
+                let label = '';
+                if(i===0) label = '凌晨12'; else if(i<12) label = `上午${i}`; else if(i===12) label = '中午12'; else label = `下午${i-12}`;
+                timeLabels.push(`<div class="time-slot flex justify-end pr-2 pt-1 text-[10px] font-bold text-slate-400">${label}</div>`);
             }
-            gridHTML += `</div>`;
-            
-            // 7天直行
-            dates.forEach(dStr => {
-                let colHtml = `<div class="border-r border-[#E8E3FF] relative cursor-pointer" onclick="showDayDetail('${dStr}')">`;
-                for(let i=0; i<24; i++) colHtml += `<div class="week-time-row border-slate-100"></div>`;
-                
-                // 定位行程
-                const timedTrips = trips.filter(t => t.startTime && t.startDate === dStr);
-                timedTrips.forEach(t => {
-                    const [h, m] = t.startTime.split(':').map(Number);
-                    const top = (h + m/60) * 60;
-                    let height = 60; // 預設1小時
-                    if(t.endTime) {
-                        const [eh, em] = t.endTime.split(':').map(Number);
-                        height = ((eh + em/60) - (h + m/60)) * 60;
-                        if(height < 20) height = 20;
-                    }
-                    colHtml += `<div onclick="event.stopPropagation(); openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="week-event-absolute bg-white" style="top:${top}px; height:${height}px; border-left-color:${t.color||'#4F97E9'}; background:${(t.color||'#4F97E9')}15;">
-                                  <div class="font-bold text-[#2C2C54] leading-tight truncate">${t.title}</div>
-                                  <div class="text-[9px] text-slate-500">${t.startTime}</div>
-                                </div>`;
-                });
-                colHtml += `</div>`;
-                gridHTML += colHtml;
-            });
-            gridHTML += `</div></div>`;
-            
-            wrapper.innerHTML = headerHTML + gridHTML;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex-1 flex flex-col bg-white rounded-lg border border-[#E8E3FF] overflow-hidden min-h-0 shadow-sm';
+            wrapper.innerHTML = `
+                <!-- 頂部列 -->
+                <div class="grid grid-cols-[60px_repeat(7,1fr)] border-b border-[#E8E3FF] flex-shrink-0 bg-white z-10">
+                    <div class="border-r border-[#E8E3FF]"></div>
+                    ${headerHTML}
+                </div>
+                <!-- 全天區塊 -->
+                <div class="grid grid-cols-[60px_repeat(7,1fr)] border-b border-slate-300 flex-shrink-0 bg-white z-10 min-h-[40px]">
+                    <div class="border-r border-[#E8E3FF] text-xs font-bold text-slate-400 flex items-center justify-center bg-slate-50">全天</div>
+                    ${allDayHTML}
+                </div>
+                <!-- 24小時滾動區 -->
+                <div class="flex-1 overflow-y-auto relative">
+                    <div class="grid grid-cols-[60px_repeat(7,1fr)] relative min-h-[1440px]">
+                        <!-- 時間標籤 -->
+                        <div class="border-r border-[#E8E3FF] bg-slate-50 relative z-10">${timeLabels.join('')}</div>
+                        <!-- 7天的網格(利用背景線條) -->
+                        ${dates.map(dateStr => `
+                            <div class="border-r border-[#E8E3FF] time-grid-bg relative cursor-pointer group" onclick="showDayDetail('${dateStr}')">
+                                <!-- 該日特定時間行程將動態放置於此 -->
+                                ${generateTimeTripsHTML(dateStr)}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
             container.appendChild(wrapper);
+            // 自動滾動到早上 8 點
+            wrapper.querySelector('.overflow-y-auto').scrollTop = 8 * 60;
         }
 
-        // --- 3. 年曆視圖 (自適應不溢出) ---
+        function generateTimeTripsHTML(dateStr) {
+            const timedTrips = getTripsForDate(dateStr).filter(t => t.startTime);
+            return timedTrips.map(t => {
+                const [h, m] = t.startTime.split(':').map(Number);
+                const top = h * 60 + m;
+                return `
+                    <div onclick="event.stopPropagation(); openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" 
+                         class="absolute left-1 right-1 rounded-md p-1.5 text-white text-[11px] font-bold leading-tight cursor-pointer shadow-sm hover:opacity-90 overflow-hidden" 
+                         style="top: ${top}px; height: 50px; background: ${t.color||'#4F97E9'};">
+                        ${t.title}<br><span class="opacity-80">${t.startTime}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ==================== 年曆視圖 (自適應) ====================
         function renderYearView(container) {
-            const year = currentDate.getFullYear();
-            document.getElementById('period-title').innerHTML = `${year} 年`;
+            const year = currentDate.getFullYear(); document.getElementById('period-title').innerHTML = `${year} 年`;
             const wrapper = document.createElement('div');
-            // 改用 h-full 與 flex-1 使網格自動計算分配高度 (3排或4排)
-            wrapper.className = 'grid grid-cols-3 md:grid-cols-4 grid-rows-4 md:grid-rows-3 h-full gap-3 md:gap-4 p-2';
+            wrapper.className = 'flex-1 grid grid-cols-3 md:grid-cols-4 grid-rows-4 md:grid-rows-3 gap-3 md:gap-4 h-full min-h-0';
             for (let m = 0; m < 12; m++) {
                 const mini = document.createElement('div');
-                mini.className = 'bg-white border border-[#E8E3FF] rounded-2xl cursor-pointer shadow-sm hover:border-[#4F97E9] flex flex-col items-center justify-center transition-all hover:-translate-y-1';
-                mini.innerHTML = `<div class="font-bold text-[#2C2C54] text-xl md:text-2xl mb-1">${m+1} 月</div>
-                                  <div class="text-[12px] md:text-sm text-slate-400 font-medium">${m+1} Month</div>`;
+                mini.className = 'bg-white border border-[#E8E3FF] rounded-2xl cursor-pointer shadow-sm hover:shadow-md hover:border-[#4F97E9] flex flex-col items-center justify-center transition-all hover:-translate-y-1 h-full';
+                mini.innerHTML = `<div class="font-black text-[#2C2C54] text-3xl mb-1">${m+1} <span class="text-lg">月</span></div><div class="text-sm text-slate-400 font-bold">${MONTH_NAMES[m]}</div>`;
                 mini.onclick = () => { currentDate = new Date(year, m, 1); switchView('month'); };
                 wrapper.appendChild(mini);
             }
             container.appendChild(wrapper);
         }
 
-        // ==================== Details & Modals ====================
+        // ==================== 右側面板與表單 ====================
         function showDayDetail(dateStr) {
             selectedDate = dateStr;
-            const panel = document.getElementById('day-detail-panel');
-            const overlay = document.getElementById('detail-overlay');
+            const d = new Date(dateStr), holiday = getHoliday(dateStr), lunarTxt = getShortLunar(dateStr);
+            let badgeHtml = holiday ? `<span class="bg-[#EF8275] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${holiday}</span>` : `<span class="bg-[#EFCB4B] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${lunarTxt}</span>`;
             
-            const d = new Date(dateStr);
-            const badgeHtml = `<span class="bg-[#EFCB4B] text-white text-[11px] px-2 py-0.5 rounded font-bold">${getExactLunar(dateStr)}</span>`;
-            document.getElementById('detail-date-title').innerHTML = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${badgeHtml}`;
+            document.getElementById('detail-date-title').innerHTML = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 (${WEEKDAYS[d.getDay()]}) ${badgeHtml}`;
             
-            const dayTrips = trips.filter(t => t.startDate <= dateStr && (!t.endDate || t.endDate >= dateStr)).sort((a,b) => (a.startTime||'').localeCompare(b.startTime||''));
             const list = document.getElementById('detail-events-list');
-            if (dayTrips.length === 0) list.innerHTML = '<div class="text-center text-slate-400 mt-10 text-sm">無行程</div>';
-            else list.innerHTML = dayTrips.map(t => `
-                <div class="bg-white border border-[#E8E3FF] rounded-xl p-3 shadow-sm relative cursor-pointer hover:border-blue-300" onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})">
-                    <div class="w-1.5 h-full absolute left-0 top-0 rounded-l-xl" style="background:${t.color||'#4F97E9'}"></div>
-                    <div class="font-bold text-[#2C2C54] text-[15px] pl-2">${t.title}</div>
-                    ${t.startTime ? `<div class="text-xs text-slate-500 font-medium pl-2 mt-1"><i class="fa-regular fa-clock mr-1"></i>${t.startTime}${t.endTime ? ' - '+t.endTime : ''}</div>` : ''}
-                </div>
-            `).join('');
+            const dayTrips = getTripsForDate(dateStr);
+            if (dayTrips.length === 0) {
+                list.innerHTML = '<div class="text-center text-slate-400 mt-10 font-bold">目前無行程</div>';
+            } else {
+                list.innerHTML = dayTrips.map(t => `
+                    <div class="bg-white border border-[#E8E3FF] rounded-2xl p-4 shadow-sm relative cursor-pointer hover:border-[#4F97E9] transition" onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})">
+                        <div class="w-2 h-full absolute left-0 top-0 rounded-l-2xl" style="background:${t.color||'#4F97E9'}"></div>
+                        <div class="font-bold text-[#2C2C54] text-[16px] pl-3">${t.title}</div>
+                        ${t.startTime ? `<div class="text-[13px] text-slate-500 font-medium pl-3 mt-1.5 flex items-center gap-1.5"><i class="fa-regular fa-clock"></i>${t.startTime}${t.endTime ? ' - '+t.endTime : ''}</div>` : ''}
+                    </div>
+                `).join('');
+            }
             
-            panel.classList.remove('translate-x-full');
-            if(overlay) overlay.classList.remove('hidden');
+            document.getElementById('day-detail-panel').classList.remove('translate-x-full');
+            document.getElementById('detail-overlay').classList.remove('hidden');
         }
 
-        function closeDayDetail() { document.getElementById('day-detail-panel').classList.add('translate-x-full'); document.getElementById('detail-overlay')?.classList.add('hidden'); }
+        function closeDayDetail() {
+            document.getElementById('day-detail-panel').classList.add('translate-x-full');
+            document.getElementById('detail-overlay').classList.add('hidden');
+        }
+
         function openTripModalFromDetail() { openTripModal(null, selectedDate); }
 
         function openTripModal(trip = null, prefillDate = null) {
             document.getElementById('trip-modal').classList.remove('hidden');
             document.getElementById('trip-modal').classList.add('flex');
             document.getElementById('trip-form').reset();
+            initColorPicker();
             
             if (trip) {
-                editingTripId = trip.id;
-                document.getElementById('modal-title').textContent = '編輯行程';
+                editingTripId = trip.id; document.getElementById('modal-title').textContent = '編輯行程'; document.getElementById('save-trip-btn').textContent = '更新';
                 document.getElementById('delete-trip-btn').classList.remove('hidden');
                 document.getElementById('trip-title').value = trip.title || '';
                 document.getElementById('start-date').value = trip.startDate || '';
                 document.getElementById('end-date').value = trip.endDate || '';
                 document.getElementById('start-time').value = trip.startTime || '';
                 document.getElementById('end-time').value = trip.endTime || '';
-                document.getElementById('trip-desc').value = trip.description || '';
-                selectedColor = trip.color || '#4F97E9';
+                document.getElementById('location').value = trip.location || '';
+                if (trip.color) { selectedColor = trip.color; initColorPicker(); }
             } else {
-                editingTripId = null;
-                document.getElementById('modal-title').textContent = '新增行程';
+                editingTripId = null; document.getElementById('modal-title').textContent = '新增行程'; document.getElementById('save-trip-btn').textContent = '儲存';
                 document.getElementById('delete-trip-btn').classList.add('hidden');
                 const d = prefillDate || new Date().toISOString().split('T')[0];
-                document.getElementById('start-date').value = d;
-                document.getElementById('end-date').value = d;
-                selectedColor = '#4F97E9';
+                document.getElementById('start-date').value = d; document.getElementById('end-date').value = d;
             }
-            initColorPicker();
         }
 
-        function closeTripModal() { document.getElementById('trip-modal').classList.add('hidden'); }
+        function closeTripModal() {
+            document.getElementById('trip-modal').classList.remove('flex'); document.getElementById('trip-modal').classList.add('hidden');
+        }
 
         function initColorPicker() {
-            const c = document.getElementById('color-picker');
-            c.innerHTML = '';
+            const c = document.getElementById('color-picker'); c.innerHTML = '';
             NEW_COLORS.forEach(col => {
                 const s = document.createElement('div');
-                s.className = `w-7 h-7 rounded-full cursor-pointer transition ${col === selectedColor ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-110'}`;
-                s.style.backgroundColor = col;
-                s.onclick = () => { selectedColor = col; initColorPicker(); };
-                c.appendChild(s);
+                s.className = `w-8 h-8 rounded-full cursor-pointer transition ${col === selectedColor ? 'ring-2 ring-offset-2 ring-[#2C2C54] scale-110' : 'hover:scale-110'}`;
+                s.style.backgroundColor = col; s.onclick = () => { selectedColor = col; initColorPicker(); }; c.appendChild(s);
             });
         }
 
+        // ==================== Navigation ====================
         function prevPeriod() {
             if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() - 1);
             else if (currentView === 'week') currentDate.setDate(currentDate.getDate() - 7);
@@ -771,10 +776,7 @@
         }
         function goToday() { currentDate = new Date(); renderCurrentView(); }
 
-        window.onload = () => {
-            document.getElementById('btn-month').classList.add('active');
-            checkUserAndInitialize();
-        };
+        window.onload = () => { document.getElementById('btn-week').classList.add('active'); checkUserAndInitialize(); };
     </script>
 </body>
 </html>
