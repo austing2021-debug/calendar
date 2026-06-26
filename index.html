@@ -7,149 +7,156 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- 引入 Lunar JS 以獲取精準農曆日期 -->
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
     <style>
         body { font-family: 'Noto Sans TC', system-ui, sans-serif; background: #FFFCF2; overflow: hidden; }
         
-        /* 月曆無間隙格子的樣式 (使用內陰影避免 hover 時推擠版面) */
+        /* 月曆格子基礎樣式 */
         .calendar-cell { transition: all 0.1s ease; cursor: pointer; border-right: 1px solid #E8E3FF; border-bottom: 1px solid #E8E3FF; }
-        .calendar-cell:hover { box-shadow: inset 0 0 0 2px #4F97E9; z-index: 10; }
-        .event-pill { font-size: 11px; padding: 2px 6px; border-radius: 6px; margin-bottom: 2px; cursor: pointer; }
+        
+        /* 月曆背景顏色邏輯 */
+        .bg-other-month { background-color: #edf9f9; }
+        .bg-current-weekend { background-color: #FCF4F4; }
+        .bg-current-weekday { background-color: #fafafa; }
+        
+        /* 今天與 Hover 效果 */
+        .is-today { box-shadow: inset 0 0 0 2px #4F97E9; }
+        .calendar-cell:hover:not(.is-today) { background-color: #ef8275 !important; }
+        .calendar-cell:hover:not(.is-today) .date-text { color: #ffffff !important; }
+        
+        /* 行程標籤樣式 */
+        .event-pill { font-size: 11px; padding: 2px; margin-bottom: 2px; cursor: pointer; height: 20px; display: flex; items-center; }
         
         /* 週曆的時間網格樣式 */
         .time-grid-bg { background-image: linear-gradient(#E8E3FF 1px, transparent 1px); background-size: 100% 60px; }
-        .time-slot { height: 60px; border-bottom: 1px solid #E8E3FF; }
+        .time-slot { height: 60px; border-bottom: 1px solid transparent; }
         
         /* 視圖切換膠囊按鈕 */
-        .view-group { background: #ffffff; border: 1px solid #4F97E9; padding: 4px; border-radius: 30px; display: flex; gap: 4px; }
+        .view-group { background: #ffffff; border: 1px solid #4F97E9; padding: 3px; border-radius: 30px; display: flex; }
         .view-btn { padding: 4px 18px; border-radius: 20px; color: #4F97E9; font-weight: 600; font-size: 14px; background: transparent; transition: all 0.2s; }
         .view-btn.active { background: #4F97E9 !important; color: #ffffff !important; }
         
         /* 節日與農曆標籤 */
-        .holiday-badge { font-size: 10px; padding: 2px 8px; border-radius: 6px; background: #EF8275; color: #ffffff; font-weight: 600; display: inline-block; }
-        .lunar-badge { font-size: 10px; padding: 2px 8px; border-radius: 6px; background: #EFCB4B; color: #ffffff; font-weight: 600; display: inline-block; }
+        .holiday-badge { font-size: 10px; padding: 2px 6px; border-radius: 6px; background: #EF8275; color: #ffffff; font-weight: 600; display: inline-block; }
+        .lunar-badge { font-size: 10px; padding: 2px 6px; border-radius: 6px; background: #EFCB4B; color: #ffffff; font-weight: 600; display: inline-block; }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: #E8E3FF; border-radius: 10px; }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden">
+<body class="flex flex-col h-screen overflow-hidden">
 
-    <!-- Sidebar -->
-    <div id="sidebar" class="sidebar w-72 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 transition-all duration-300 overflow-hidden relative z-40">
-        
-        <!-- Sidebar Header -->
-        <div class="px-6 pt-6 pb-4 border-b">
-            <!-- 未登入狀態 -->
-            <div id="header-logged-out" class="flex items-center gap-x-3">
-                <div class="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#2C2C54]">
-                    <i class="fa-solid fa-calendar text-white text-2xl"></i>
+    <!-- Top Bar (選項A) -->
+    <div class="h-16 border-b bg-white px-4 md:px-6 flex items-center justify-between flex-shrink-0 z-40 relative shadow-sm">
+        <!-- Left: Menu & Logo -->
+        <div class="flex items-center gap-x-4">
+            <button onclick="toggleSidebar()" class="w-10 h-10 flex items-center justify-center text-[#2C2C54] border-2 border-[#2C2C54] rounded-full hover:bg-slate-50 transition">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <div class="hidden sm:flex items-center gap-x-2">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-[#2C2C54]">
+                    <i class="fa-solid fa-calendar text-white"></i>
                 </div>
-                <h1 class="text-2xl font-bold tracking-tighter text-[#2C2C54]">行事曆</h1>
-            </div>
-
-            <!-- 已登入狀態 -->
-            <div id="header-logged-in" class="hidden items-center gap-x-3 relative group">
-                <div class="w-10 h-10 rounded-2xl flex items-center justify-center bg-[#2C2C54] flex-shrink-0">
-                    <i class="fa-solid fa-calendar text-white text-2xl"></i>
-                </div>
-                <img id="header-avatar" class="w-10 h-10 rounded-full object-cover flex-shrink-0" alt="">
-                <div class="flex-1 min-w-0">
-                    <div id="header-name" class="font-bold text-[15px] truncate text-[#2C2C54]"></div>
-                    <div id="header-email" class="text-xs text-slate-500 truncate"></div>
-                </div>
-                <button onclick="signOut()" class="absolute right-0 text-red-500 opacity-0 group-hover:opacity-100 transition p-1 bg-white rounded" title="登出">
-                    <i class="fa-solid fa-sign-out-alt"></i>
-                </button>
+                <h1 class="text-xl font-bold text-[#2C2C54] tracking-tight">行事曆</h1>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto min-h-0 flex flex-col">
-            <!-- Calendar Switcher & Editor -->
-            <div id="calendar-lists-container" class="px-5 pt-4 hidden">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-bold text-slate-400">我的行事曆本</span>
-                    <div class="flex gap-2">
-                        <button onclick="createNewCalendar()" class="text-[#4F97E9] hover:bg-blue-50 px-2 py-1 rounded text-xs transition font-semibold">
-                            <i class="fa-solid fa-plus"></i> 新增
-                        </button>
-                        <button onclick="toggleEditCalendars()" id="edit-cal-btn" class="text-slate-400 hover:text-slate-600 px-2 py-1 rounded text-xs transition font-semibold">
-                            <i class="fa-solid fa-pen"></i> 編輯
-                        </button>
-                    </div>
-                </div>
-                <div id="my-calendars-list" class="space-y-1 mb-4"></div>
+        <!-- Center: Controls -->
+        <div class="flex items-center gap-x-3 md:gap-x-4 absolute left-1/2 transform -translate-x-1/2">
+            <!-- 視圖切換 -->
+            <div class="view-group hidden md:flex">
+                <button onclick="switchView('week')" id="btn-week" class="view-btn">週</button>
+                <button onclick="switchView('month')" id="btn-month" class="view-btn active">月</button>
+                <button onclick="switchView('year')" id="btn-year" class="view-btn">年</button>
             </div>
-
-            <!-- Add Trip & Google Login -->
-            <div class="px-5 pt-2 pb-6 border-b border-slate-100 border-dashed space-y-2">
-                <button id="add-trip-btn" onclick="openTripModal()" class="hidden w-full flex items-center justify-center gap-x-2 px-4 py-3 text-white rounded-2xl text-sm font-semibold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>新增行程</span>
+            <!-- 月份選擇器 -->
+            <div class="flex items-center bg-[#4F97E9] rounded-[24px] p-1 shadow-sm">
+                <button onclick="prevPeriod()" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition text-white">
+                    <i class="fa-solid fa-chevron-left text-sm"></i>
                 </button>
-
-                <button id="google-login-btn" onclick="signInWithGoogle()" class="w-full flex items-center justify-center gap-x-2 px-4 py-3 bg-white border border-[#E8E3FF] rounded-2xl text-sm font-semibold text-[#2C2C54] shadow-sm hover:bg-slate-50 transition">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5">
-                    <span>使用 Google 登入</span>
+                <div id="period-title" class="px-3 font-bold text-[15px] text-white min-w-[110px] text-center cursor-pointer tracking-wide" onclick="goToday()"></div>
+                <button onclick="nextPeriod()" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition text-white">
+                    <i class="fa-solid fa-chevron-right text-sm"></i>
                 </button>
             </div>
+            <!-- 今天按鈕 -->
+            <button onclick="goToday()" class="hidden sm:block px-4 py-1.5 text-sm border border-[#E8E3FF] rounded-full text-[#2C2C54] hover:bg-slate-50 transition font-medium">
+                今天
+            </button>
+            <!-- 邀請按鈕 -->
+            <button id="share-btn" onclick="generateShareLink()" class="hidden md:flex px-3 py-1.5 text-sm items-center gap-x-1.5 text-[#4F97E9] bg-blue-50 rounded-full hover:bg-[#4F97E9] hover:text-white transition border border-blue-100 font-semibold">
+                <i class="fa-solid fa-link"></i> 邀請
+            </button>
+        </div>
 
-            <!-- Recent Upcoming Activities (1 Month) -->
-            <div id="upcoming-container" class="px-5 pt-4 pb-4 hidden flex-1">
-                <div class="text-xs font-bold text-slate-400 mb-3 flex items-center justify-between">
-                    <span>近期活動 (30天內)</span>
-                    <span id="upcoming-count" class="bg-[#EF8275] text-white px-2 py-0.5 rounded-full text-[10px]">0</span>
+        <!-- Right: User Profile -->
+        <div class="flex items-center gap-x-3">
+            <!-- 未登入 -->
+            <button id="google-login-btn" onclick="signInWithGoogle()" class="flex items-center gap-x-2 px-3 py-1.5 bg-white border border-[#E8E3FF] rounded-full text-sm font-semibold text-[#2C2C54] hover:bg-slate-50 transition">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-4 h-4">
+                <span class="hidden sm:inline">登入</span>
+            </button>
+            <!-- 已登入 -->
+            <div id="header-logged-in" class="hidden items-center gap-x-2 relative group cursor-pointer">
+                <div class="hidden md:block text-sm font-bold text-[#2C2C54] text-right">
+                    <div id="header-name" class="leading-tight"></div>
                 </div>
-                <div id="upcoming-list" class="space-y-2"></div>
+                <img id="header-avatar" class="w-9 h-9 rounded-full object-cover border border-slate-200" alt="">
+                <button onclick="signOut()" class="absolute top-10 right-0 w-max text-red-500 opacity-0 group-hover:opacity-100 transition px-3 py-2 bg-white shadow-lg border rounded-lg text-sm font-bold z-50">
+                    登出
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col min-w-0 relative h-full bg-[#FFFCF2]">
-        
-        <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 z-50 flex items-center justify-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4F97E9]"></div>
-        </div>
-
-        <!-- Header Bar -->
-        <div class="h-16 border-b bg-white px-4 flex items-center justify-between flex-shrink-0">
-            <div class="flex items-center gap-x-3 md:gap-x-4">
-                <!-- 自行開關側邊欄按鈕 -->
-                <button onclick="toggleSidebar()" class="w-10 h-10 flex items-center justify-center text-[#2C2C54] hover:bg-slate-100 rounded-xl transition">
-                    <i class="fa-solid fa-bars text-xl"></i>
-                </button>
-
-                <div class="flex items-center bg-[#4F97E9] rounded-[24px] p-1 shadow-sm">
-                    <button onclick="prevPeriod()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition" style="color:#ffffff;">
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                    <div id="period-title" class="px-4 font-bold text-[16px] text-white min-w-[120px] text-center cursor-pointer tracking-wide" onclick="goToday()"></div>
-                    <button onclick="nextPeriod()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition" style="color:#ffffff;">
-                        <i class="fa-solid fa-chevron-right"></i>
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar (選項B) -->
+        <div id="sidebar" class="sidebar w-64 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 transition-all duration-300 overflow-hidden relative z-30">
+            <div class="flex-1 overflow-y-auto min-h-0 flex flex-col pt-5">
+                
+                <!-- My Calendars -->
+                <div id="calendar-lists-container" class="px-5 hidden flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-[13px] font-bold text-slate-500">我的行事曆本</span>
+                        <div class="flex gap-2">
+                            <button onclick="createNewCalendar()" class="text-[#4F97E9] hover:bg-blue-50 px-1.5 py-1 rounded text-xs transition font-semibold">
+                                <i class="fa-solid fa-plus"></i> 新增
+                            </button>
+                            <button onclick="toggleEditCalendars()" id="edit-cal-btn" class="text-slate-400 hover:text-slate-600 px-1.5 py-1 rounded text-xs transition font-semibold">
+                                <i class="fa-solid fa-pen"></i> 編輯
+                            </button>
+                        </div>
+                    </div>
+                    <div id="my-calendars-list" class="space-y-1.5 mb-6"></div>
+                    
+                    <!-- Add Trip Button (選項B 大按鈕) -->
+                    <button id="add-trip-btn" onclick="openTripModal()" class="w-full py-3 text-white rounded-xl text-[15px] font-bold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
+                        <i class="fa-solid fa-plus mr-1"></i> 新增行程
                     </button>
                 </div>
-                <button onclick="goToday()" class="hidden md:flex px-4 py-1.5 text-sm border border-[#E8E3FF] rounded-2xl items-center gap-x-2 text-[#2C2C54] hover:bg-slate-50 transition font-medium">
-                    今天
-                </button>
-            </div>
 
-            <div class="flex items-center gap-x-4">
-                <div class="view-group hidden sm:flex">
-                    <button onclick="switchView('week')" id="btn-week" class="view-btn">週</button>
-                    <button onclick="switchView('month')" id="btn-month" class="view-btn active">月</button>
-                    <button onclick="switchView('year')" id="btn-year" class="view-btn">年</button>
+                <div class="mx-5 my-5 border-b border-slate-100 border-dashed"></div>
+
+                <!-- Recent Upcoming Activities -->
+                <div id="upcoming-container" class="px-5 pb-6 hidden flex-1">
+                    <div class="text-[13px] font-bold text-slate-500 mb-3 flex items-center justify-between">
+                        <span>近期活動 (30天內)</span>
+                        <span id="upcoming-count" class="bg-[#EF8275] text-white px-2 py-0.5 rounded-full text-[10px]">0</span>
+                    </div>
+                    <div id="upcoming-list" class="space-y-3"></div>
                 </div>
-                <button id="share-btn" onclick="generateShareLink()" class="hidden px-3 md:px-4 py-2 text-sm flex items-center gap-x-2 border border-[#4F97E9] text-[#4F97E9] rounded-2xl hover:bg-[#4F97E9] hover:text-white transition">
-                    <i class="fa-solid fa-link"></i>
-                    <span class="hidden md:inline font-semibold">邀請</span>
-                </button>
             </div>
         </div>
 
-        <div class="flex-1 p-2 sm:p-4 overflow-hidden flex flex-col">
-            <div class="max-w-[1400px] mx-auto w-full h-full flex flex-col" id="calendar-content"></div>
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col min-w-0 relative bg-[#FFFCF2]">
+            <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 z-50 flex items-center justify-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4F97E9]"></div>
+            </div>
+
+            <div class="flex-1 p-2 sm:p-4 md:p-6 overflow-hidden flex flex-col">
+                <div class="max-w-[1400px] mx-auto w-full h-full flex flex-col" id="calendar-content"></div>
+            </div>
         </div>
     </div>
 
@@ -157,9 +164,7 @@
     <div id="day-detail-panel" class="fixed right-0 top-0 bottom-0 w-full md:w-[380px] bg-white shadow-2xl border-l transform translate-x-full transition-transform duration-300 z-50 flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-white z-10">
             <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
-            <button onclick="closeDayDetail()" class="text-slate-400 hover:text-slate-600 text-xl px-2 transition-colors">
-                <i class="fa-solid fa-times"></i>
-            </button>
+            <button onclick="closeDayDetail()" class="text-slate-400 hover:text-slate-600 text-xl px-2 transition-colors"><i class="fa-solid fa-times"></i></button>
         </div>
         <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-[#FFFCF2]" id="detail-events-list"></div>
         <div class="p-5 bg-white border-t z-10">
@@ -180,7 +185,7 @@
             <form id="trip-form" onsubmit="handleTripFormSubmit(event)" class="p-5 space-y-4">
                 <div>
                     <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">行程標題 <span class="text-red-500">*</span></label>
-                    <input type="text" id="trip-title" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] focus:ring-1 focus:ring-[#4F97E9] outline-none transition" placeholder="例如：產品開發會議">
+                    <input type="text" id="trip-title" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none transition" placeholder="例如：產品開發會議">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -236,10 +241,10 @@
         // ==================== Core / Logic ====================
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
-            if (sb.classList.contains('w-72')) {
-                sb.classList.replace('w-72', 'w-0');
+            if (sb.classList.contains('w-64')) {
+                sb.classList.replace('w-64', 'w-0');
             } else {
-                sb.classList.replace('w-0', 'w-72');
+                sb.classList.replace('w-0', 'w-64');
             }
         }
 
@@ -260,24 +265,21 @@
             if (user) {
                 currentUser = user;
                 document.getElementById('google-login-btn').classList.add('hidden');
-                document.getElementById('header-logged-out').classList.add('hidden');
                 document.getElementById('header-logged-in').classList.remove('hidden');
                 document.getElementById('header-logged-in').classList.add('flex');
-                document.getElementById('add-trip-btn').classList.remove('hidden');
+                
                 document.getElementById('calendar-lists-container').classList.remove('hidden');
+                document.getElementById('calendar-lists-container').classList.add('flex');
                 document.getElementById('upcoming-container').classList.remove('hidden');
                 document.getElementById('share-btn').classList.remove('hidden');
                 
                 document.getElementById('header-name').textContent = user.user_metadata?.full_name || user.email;
-                document.getElementById('header-email').textContent = user.email;
                 if (user.user_metadata?.avatar_url) document.getElementById('header-avatar').src = user.user_metadata.avatar_url;
 
                 await checkJoinRequest();
                 await loadCalendars();
             } else {
                 document.getElementById('google-login-btn').classList.remove('hidden');
-                document.getElementById('header-logged-out').classList.remove('hidden');
-                document.getElementById('header-logged-out').classList.add('flex');
                 document.getElementById('header-logged-in').classList.add('hidden');
                 hideLoading();
                 renderCurrentView();
@@ -374,10 +376,10 @@
         function renderCalendarListUI() {
             const listEl = document.getElementById('my-calendars-list');
             listEl.innerHTML = myCalendars.map(cal => `
-                <div class="flex items-center px-3 py-2 rounded-xl transition-colors ${cal.id === currentCalendarId ? 'bg-[#4F97E9]/10 border border-[#4F97E9]/20' : 'hover:bg-slate-100'}">
+                <div class="flex items-center px-3 py-2 rounded-xl transition-colors ${cal.id === currentCalendarId ? 'bg-[#4F97E9]/10 border border-[#4F97E9]/20' : 'hover:bg-slate-50 border border-transparent'}">
                     <div class="flex-1 flex items-center cursor-pointer" onclick="switchCalendar('${cal.id}')">
-                        <div class="w-3 h-3 rounded-full mr-3 ${cal.id === currentCalendarId ? 'bg-[#4F97E9]' : 'bg-slate-300'}"></div>
-                        <span class="truncate text-sm font-medium ${cal.id === currentCalendarId ? 'text-[#4F97E9]' : 'text-slate-700'}">${cal.name}</span>
+                        <div class="w-2.5 h-2.5 rounded-full mr-3 ${cal.id === currentCalendarId ? 'bg-[#4F97E9]' : 'bg-slate-300'}"></div>
+                        <span class="truncate text-[14px] font-bold ${cal.id === currentCalendarId ? 'text-[#4F97E9]' : 'text-[#2C2C54]'}">${cal.name}</span>
                     </div>
                     ${isEditingCalendars && cal.role === 'owner' ? `
                         <div class="flex items-center gap-2 text-slate-400 ml-2">
@@ -425,12 +427,12 @@
                 return;
             }
             c.innerHTML = future.slice(0, 8).map(t => `
-                <div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="px-3 py-2 hover:bg-slate-50 rounded-xl cursor-pointer flex gap-3 text-sm border border-[#E8E3FF] transition shadow-sm bg-white">
-                    <div class="w-1.5 h-1.5 mt-2 rounded-full flex-shrink-0" style="background:${t.color||'#4F97E9'}"></div>
-                    <div class="flex-1 min-w-0">
-                        <div class="font-bold truncate text-[#2C2C54]">${t.title}</div>
-                        <div class="text-[11px] font-medium text-slate-400 mt-0.5">${t.startDate.slice(5).replace('-','/')} ${t.startTime || ''}</div>
+                <div onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})" class="px-4 py-3 bg-white rounded-xl cursor-pointer border border-[#E8E3FF] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:border-[#4F97E9] transition">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:${t.color||'#EF8275'}"></div>
+                        <div class="font-bold truncate text-[#2C2C54] text-[14px]">${t.title}</div>
                     </div>
+                    <div class="text-[12px] font-medium text-slate-400 mt-1 pl-3.5">${t.startDate.slice(5).replace('-','/')} ${t.startTime || ''}</div>
                 </div>
             `).join('');
         }
@@ -468,18 +470,17 @@
 
         // ==================== Render Core ====================
         let currentDate = new Date();
-        let currentView = 'week';
+        let currentView = 'month';
         let selectedDate = null;
         let selectedColor = '#4F97E9';
         
         const NEW_COLORS = ['#FF6060', '#F8BD5E', '#F3E775', '#8FEC6F', '#76D2EE', '#6B8EF8', '#B88BF7'];
         const WEEKDAYS = ['週日','週一','週二','週三','週四','週五','週六'];
-        const MONTH_NAMES = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+        const EN_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const TAIWAN_HOLIDAYS = { "2026-01-01":"元旦","2026-02-17":"除夕","2026-02-18":"春節","2026-04-03":"兒童節","2026-04-04":"清明節","2026-06-19":"端午節","2026-09-25":"中秋節","2026-10-10":"國慶日" };
 
         function getHoliday(dateStr) { return TAIWAN_HOLIDAYS[dateStr] || null; }
         
-        // 真實農曆計算 (格式: M.D)
         function getShortLunar(dateStr) { 
             try {
                 const d = new Date(dateStr);
@@ -504,14 +505,31 @@
             else renderYearView(c);
         }
 
-        function getTripsForDate(dateStr) { return trips.filter(t => t.startDate <= dateStr && (!t.endDate || t.endDate >= dateStr)).sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')); }
+        function getTripsForDate(dateStr) { 
+            return trips.filter(t => t.startDate <= dateStr && (!t.endDate || t.endDate >= dateStr)).sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')); 
+        }
 
-        function createTripPill(trip) {
+        // 月曆專用連續天數標籤渲染
+        function createMonthTripPill(trip, dateStr) {
             const p = document.createElement('div');
+            const d = new Date(dateStr);
+            const isStart = dateStr === trip.startDate || d.getDay() === 0; // 起始日或週日(新的一行)
+            const tripEnd = trip.endDate || trip.startDate;
+            const isEnd = dateStr === tripEnd || d.getDay() === 6; // 結束日或週六
+            
             p.className = `event-pill truncate transition hover:opacity-80`;
             p.style.backgroundColor = trip.color || '#4F97E9';
             p.style.color = '#fff';
-            p.textContent = trip.title;
+            
+            p.style.marginLeft = isStart ? '2px' : '0px';
+            p.style.marginRight = isEnd ? '2px' : '0px';
+            p.style.borderTopLeftRadius = isStart ? '4px' : '0px';
+            p.style.borderBottomLeftRadius = isStart ? '4px' : '0px';
+            p.style.borderTopRightRadius = isEnd ? '4px' : '0px';
+            p.style.borderBottomRightRadius = isEnd ? '4px' : '0px';
+            p.style.paddingLeft = isStart ? '6px' : '2px';
+            
+            p.innerHTML = `<span class="font-bold truncate w-full block leading-[16px]">${isStart ? trip.title : '&nbsp;'}</span>`;
             p.onclick = e => { e.stopPropagation(); openTripModal(trip); };
             return p;
         }
@@ -519,13 +537,13 @@
         // ==================== 月曆視圖 ====================
         function renderMonthView(container) {
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
-            document.getElementById('period-title').innerHTML = `${year} 年 ${month + 1} 月`;
+            document.getElementById('period-title').innerHTML = `${year}年 ${month + 1}月`;
 
             const wrapper = document.createElement('div');
             wrapper.className = 'flex-1 flex flex-col h-full min-h-0 border-l border-t border-[#E8E3FF] bg-white rounded-lg shadow-sm overflow-hidden';
             wrapper.innerHTML = `
                 <div class="grid grid-cols-7 flex-shrink-0 bg-white">
-                    ${WEEKDAYS.map(d => `<div class="text-center text-[13px] py-1.5 text-slate-500 font-bold border-r border-b border-[#E8E3FF]">${d}</div>`).join('')}
+                    ${WEEKDAYS.map(d => `<div class="text-center text-[13px] py-2 text-slate-500 font-bold border-r border-b border-[#E8E3FF]">${d}</div>`).join('')}
                 </div>
                 <div id="month-grid" class="flex-1 grid grid-cols-7 grid-rows-6 min-h-0"></div>
             `;
@@ -535,6 +553,7 @@
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const daysInPrev = new Date(year, month, 0).getDate();
+            const todayStr = new Date().toISOString().split('T')[0];
 
             for (let i = 0; i < 42; i++) {
                 let dayNum, cellDateStr, isCurrent = true, cellY = year, cellM = month;
@@ -549,41 +568,42 @@
                 if (!cellDateStr) cellDateStr = `${cellY}-${String(cellM+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
 
                 const cell = document.createElement('div');
-                cell.className = `calendar-cell flex flex-col p-1.5 overflow-hidden`;
+                cell.className = `calendar-cell flex flex-col pt-1.5 pb-0.5 overflow-hidden group`;
                 
                 const isWeekend = (i % 7 === 0 || i % 7 === 6);
+                
+                // 套用指定背景顏色
                 if (!isCurrent) {
-                    cell.style.backgroundColor = '#E8F0FE';
-                    cell.classList.add('opacity-70');
+                    cell.classList.add('bg-other-month');
                 } else if (isWeekend) {
-                    cell.style.backgroundColor = '#F8D4D4';
+                    cell.classList.add('bg-current-weekend');
                 } else {
-                    cell.style.backgroundColor = '#FFFFFF';
+                    cell.classList.add('bg-current-weekday');
                 }
 
-                if (cellDateStr === new Date().toISOString().split('T')[0]) cell.style.boxShadow = 'inset 0 0 0 2px #4F97E9';
+                if (cellDateStr === todayStr) cell.classList.add('is-today');
 
                 const holiday = getHoliday(cellDateStr), lunarTxt = getShortLunar(cellDateStr);
                 let badgeHtml = holiday ? `<span class="holiday-badge">${holiday}</span>` : `<span class="lunar-badge">${lunarTxt}</span>`;
                 
                 cell.innerHTML = `
-                    <div class="flex items-start justify-between mb-1 flex-shrink-0">
-                        <span class="font-bold text-[16px] text-[#2C2C54]">${dayNum}</span>${badgeHtml}
+                    <div class="flex items-start justify-between mb-1 px-1.5 flex-shrink-0">
+                        <span class="date-text font-bold text-[16px] text-[#2C2C54] transition-colors">${dayNum}</span>${badgeHtml}
                     </div>
-                    <div class="trips-wrap flex-1 flex flex-col gap-y-0.5 overflow-hidden mt-0.5"></div>
+                    <div class="trips-wrap flex-1 flex flex-col gap-y-[1px] overflow-hidden mt-0.5"></div>
                 `;
                 
                 const dayTrips = getTripsForDate(cellDateStr);
                 const wrap = cell.querySelector('.trips-wrap');
-                dayTrips.slice(0, 3).forEach(trip => wrap.appendChild(createTripPill(trip)));
-                if (dayTrips.length > 3) wrap.innerHTML += `<div class="text-[10px] text-slate-500 pl-1 font-bold mt-auto">+${dayTrips.length-3} 更多</div>`;
+                dayTrips.slice(0, 4).forEach(trip => wrap.appendChild(createMonthTripPill(trip, cellDateStr)));
+                if (dayTrips.length > 4) wrap.innerHTML += `<div class="text-[10px] text-slate-500 px-1 font-bold mt-auto">+${dayTrips.length-4} 更多</div>`;
 
                 cell.onclick = (e) => { if (!e.target.closest('.event-pill') && currentUser) showDayDetail(cellDateStr); };
                 grid.appendChild(cell);
             }
         }
 
-        // ==================== 週曆視圖 (完全重構，對齊圖1) ====================
+        // ==================== 週曆視圖 ====================
         function renderWeekView(container) {
             const year = currentDate.getFullYear(), month = currentDate.getMonth(), day = currentDate.getDate();
             const sunday = new Date(year, month, day); sunday.setDate(sunday.getDate() - sunday.getDay());
@@ -597,7 +617,6 @@
             
             let headerHTML = '', allDayHTML = '', gridHTML = '';
             
-            // Header (週、日、農曆) & All Day
             dates.forEach((dateStr, idx) => {
                 const dObj = new Date(dateStr), dayNum = dObj.getDate();
                 const lunarTxt = getShortLunar(dateStr);
@@ -620,36 +639,29 @@
                 allDayHTML += `<div class="border-r border-[#E8E3FF] p-1 overflow-hidden" onclick="showDayDetail('${dateStr}')">${pills}</div>`;
             });
 
-            // 24 Hour Slots
             const timeLabels = [];
             for(let i=0; i<24; i++) {
                 let label = '';
                 if(i===0) label = '凌晨12'; else if(i<12) label = `上午${i}`; else if(i===12) label = '中午12'; else label = `下午${i-12}`;
-                timeLabels.push(`<div class="time-slot flex justify-end pr-2 pt-1 text-[10px] font-bold text-slate-400">${label}</div>`);
+                timeLabels.push(`<div class="time-slot flex justify-end pr-2 pt-1 text-[10px] font-bold text-slate-400 border-r border-[#E8E3FF]">${label}</div>`);
             }
 
             const wrapper = document.createElement('div');
-            wrapper.className = 'flex-1 flex flex-col bg-white rounded-lg border border-[#E8E3FF] overflow-hidden min-h-0 shadow-sm';
+            wrapper.className = 'flex-1 flex flex-col bg-[#fafafa] rounded-lg border border-[#E8E3FF] overflow-hidden min-h-0 shadow-sm';
             wrapper.innerHTML = `
-                <!-- 頂部列 -->
                 <div class="grid grid-cols-[60px_repeat(7,1fr)] border-b border-[#E8E3FF] flex-shrink-0 bg-white z-10">
                     <div class="border-r border-[#E8E3FF]"></div>
                     ${headerHTML}
                 </div>
-                <!-- 全天區塊 -->
-                <div class="grid grid-cols-[60px_repeat(7,1fr)] border-b border-slate-300 flex-shrink-0 bg-white z-10 min-h-[40px]">
+                <div class="grid grid-cols-[60px_repeat(7,1fr)] border-b border-[#E8E3FF] flex-shrink-0 bg-white z-10 min-h-[40px]">
                     <div class="border-r border-[#E8E3FF] text-xs font-bold text-slate-400 flex items-center justify-center bg-slate-50">全天</div>
                     ${allDayHTML}
                 </div>
-                <!-- 24小時滾動區 -->
-                <div class="flex-1 overflow-y-auto relative">
+                <div class="flex-1 overflow-y-auto relative bg-white">
                     <div class="grid grid-cols-[60px_repeat(7,1fr)] relative min-h-[1440px]">
-                        <!-- 時間標籤 -->
-                        <div class="border-r border-[#E8E3FF] bg-slate-50 relative z-10">${timeLabels.join('')}</div>
-                        <!-- 7天的網格(利用背景線條) -->
+                        <div class="bg-slate-50 relative z-10">${timeLabels.join('')}</div>
                         ${dates.map(dateStr => `
                             <div class="border-r border-[#E8E3FF] time-grid-bg relative cursor-pointer group" onclick="showDayDetail('${dateStr}')">
-                                <!-- 該日特定時間行程將動態放置於此 -->
                                 ${generateTimeTripsHTML(dateStr)}
                             </div>
                         `).join('')}
@@ -657,7 +669,6 @@
                 </div>
             `;
             container.appendChild(wrapper);
-            // 自動滾動到早上 8 點
             wrapper.querySelector('.overflow-y-auto').scrollTop = 8 * 60;
         }
 
@@ -676,15 +687,15 @@
             }).join('');
         }
 
-        // ==================== 年曆視圖 (自適應) ====================
+        // ==================== 年曆視圖 (英文縮寫) ====================
         function renderYearView(container) {
             const year = currentDate.getFullYear(); document.getElementById('period-title').innerHTML = `${year} 年`;
             const wrapper = document.createElement('div');
-            wrapper.className = 'flex-1 grid grid-cols-3 md:grid-cols-4 grid-rows-4 md:grid-rows-3 gap-3 md:gap-4 h-full min-h-0';
+            wrapper.className = 'flex-1 grid grid-cols-3 md:grid-cols-4 grid-rows-4 md:grid-rows-3 gap-3 md:gap-4 h-full min-h-0 pb-4';
             for (let m = 0; m < 12; m++) {
                 const mini = document.createElement('div');
                 mini.className = 'bg-white border border-[#E8E3FF] rounded-2xl cursor-pointer shadow-sm hover:shadow-md hover:border-[#4F97E9] flex flex-col items-center justify-center transition-all hover:-translate-y-1 h-full';
-                mini.innerHTML = `<div class="font-black text-[#2C2C54] text-3xl mb-1">${m+1} <span class="text-lg">月</span></div><div class="text-sm text-slate-400 font-bold">${MONTH_NAMES[m]}</div>`;
+                mini.innerHTML = `<div class="font-black text-[#2C2C54] text-3xl mb-1">${m+1} <span class="text-lg">月</span></div><div class="text-sm text-slate-400 font-bold uppercase tracking-wider">${EN_MONTH_NAMES[m]}</div>`;
                 mini.onclick = () => { currentDate = new Date(year, m, 1); switchView('month'); };
                 wrapper.appendChild(mini);
             }
@@ -776,7 +787,7 @@
         }
         function goToday() { currentDate = new Date(); renderCurrentView(); }
 
-        window.onload = () => { document.getElementById('btn-week').classList.add('active'); checkUserAndInitialize(); };
+        window.onload = () => { document.getElementById('btn-month').classList.add('active'); checkUserAndInitialize(); };
     </script>
 </body>
 </html>
