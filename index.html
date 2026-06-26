@@ -10,36 +10,25 @@
     <script src="https://cdn.jsdelivr.net/npm/lunar-javascript/lunar.min.js"></script>
     <style>
         body { font-family: 'Noto Sans TC', system-ui, sans-serif; background: #FFFCF2; overflow: hidden; }
-        
-        /* 隱藏滾動條 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 月曆格子基礎樣式 */
         .calendar-cell { transition: box-shadow 0.15s ease; cursor: pointer; border-right: 1px solid #E8E3FF; border-bottom: 1px solid #E8E3FF; }
-        
-        /* 月曆背景顏色與霧面邏輯 */
         .bg-other-month { background-color: #edf9f9; opacity: 0.5; } 
         .bg-current-weekend { background-color: #FCF4F4; opacity: 1; }
         .bg-current-weekday { background-color: #fafafa; opacity: 1; }
         
-        /* 今天與 Hover 效果 (只改框線不蓋底色) */
         .is-today { box-shadow: inset 0 0 0 2px #4F97E9; }
         .calendar-cell:hover:not(.is-today) { box-shadow: inset 0 0 0 2px #ef8275; z-index: 10; position: relative; }
         
-        /* 行程標籤樣式 */
         .event-pill { font-size: 11px; padding: 2px 4px; margin-bottom: 2px; cursor: pointer; min-height: 20px; display: flex; align-items: center; overflow: hidden; }
-        
-        /* 週曆的時間網格樣式 */
         .time-grid-bg { background-image: linear-gradient(#E8E3FF 1px, transparent 1px); background-size: 100% 60px; }
         .time-slot { height: 60px; border-bottom: 1px solid transparent; }
         
-        /* 視圖切換膠囊按鈕 */
         .view-group { background: #ffffff; border: 1px solid #4F97E9; padding: 2px; border-radius: 30px; display: flex; }
         .view-btn { padding: 4px 16px; border-radius: 20px; color: #4F97E9; font-weight: 600; font-size: 14px; background: transparent; transition: all 0.2s; }
         .view-btn.active { background: #4F97E9 !important; color: #ffffff !important; }
         
-        /* 節日與農曆標籤 */
         .holiday-badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: #F0958B; color: #ffffff; font-weight: 600; display: inline-block; white-space: nowrap; }
         .lunar-badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: #FFDE96; color: #ffffff; font-weight: 600; display: inline-block; white-space: nowrap; text-shadow: 0px 0px 2px rgba(0,0,0,0.15); }
 
@@ -50,7 +39,6 @@
 <body class="flex flex-col h-screen overflow-hidden w-full max-w-full">
 
     <div class="h-14 md:h-16 border-b bg-white px-2 md:px-6 flex items-center justify-between flex-shrink-0 z-40 relative shadow-sm w-full gap-2">
-        
         <div class="flex items-center gap-x-1.5 md:gap-x-2 flex-shrink-0 z-10">
             <button onclick="toggleSidebar()" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-[#2C2C54] border-2 border-[#2C2C54] rounded-full hover:bg-slate-50 transition">
                 <i class="fa-solid fa-bars text-[13px] md:text-lg"></i>
@@ -97,7 +85,6 @@
     </div>
 
     <div class="flex-1 flex overflow-hidden w-full relative">
-        
         <div id="sidebar-overlay" onclick="toggleSidebar()" class="md:hidden absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-20 hidden transition-opacity"></div>
         
         <div id="sidebar" class="absolute md:relative inset-y-0 left-0 w-64 bg-white md:shadow-none shadow-2xl z-30 flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-300 border-r border-slate-200 flex-shrink-0">
@@ -170,7 +157,7 @@
             </div>
             <form id="trip-form" onsubmit="handleTripFormSubmit(event)" class="p-5 space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">行程標題 <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">行程標題 <span class="text-red-500" id="title-required-star">*</span></label>
                     <input type="text" id="trip-title" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none transition" placeholder="例如：產品開發會議">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -202,7 +189,7 @@
                     <textarea id="trip-desc" rows="2" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none resize-none transition" placeholder="會議議程..."></textarea>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold mb-2 text-[#2C2C54]">顏色標記</label>
+                    <label id="color-picker-label" class="block text-sm font-semibold mb-2 text-[#2C2C54]">顏色標記</label>
                     <div class="flex flex-wrap gap-3" id="color-picker"></div>
                 </div>
                 <div class="flex gap-3 pt-3 sticky bottom-0 bg-white pb-2 border-t mt-4">
@@ -254,7 +241,7 @@
             }
         });
 
-        // ==================== Swipe Gesture (上下滑動) ====================
+        // ==================== Swipe Gesture ====================
         let touchstartX = 0;
         let touchendX = 0;
         let touchstartY = 0;
@@ -264,8 +251,8 @@
             const diffX = touchstartX - touchendX;
             const diffY = touchstartY - touchendY;
             if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 50) {
-                if (diffY > 0) nextPeriod(); // 向上滑 -> 下一個月
-                else prevPeriod();           // 向下滑 -> 上一個月
+                if (diffY > 0) nextPeriod(); 
+                else prevPeriod();           
             }
         }
 
@@ -310,7 +297,6 @@
             } catch (error) { alert('Google 授權失敗：' + error.message); }
         }
 
-        // --- 完整 Google 日曆讀取與錯誤攔截邏輯 ---
         async function fetchGoogleEvents(token) {
             try {
                 showLoading();
@@ -341,10 +327,21 @@
                             endTime: item.end.dateTime ? end.split('T')[1].substring(0,5) : null,
                             location: item.location || '',
                             description: item.description || '',
-                            color: '#34A853'
+                            color: '#34A853',
+                            isGoogle: true // 標記為 Google 行程
                         };
                     });
                 }
+                
+                // 同步成功後更新按鈕樣式
+                const syncBtn = document.getElementById('sync-google-btn');
+                if (syncBtn) {
+                    syncBtn.innerHTML = '<i class="fa-brands fa-google text-emerald-500 mr-1"></i> 已同步 Google 日曆';
+                    syncBtn.classList.replace('text-[#2C2C54]', 'text-emerald-600');
+                    syncBtn.classList.add('bg-emerald-50', 'border-emerald-200');
+                    syncBtn.disabled = true; 
+                }
+                
                 hideLoading();
             } catch(e) {
                 console.error("Fetch Google Events failed:", e);
@@ -391,7 +388,7 @@
             }
         }
 
-        // ==================== Calendar Management & Share ====================
+        // ==================== Calendar Management ====================
         async function checkJoinRequest() {
             const joinId = new URLSearchParams(window.location.search).get('join');
             if (joinId && currentUser) {
@@ -881,9 +878,34 @@
             document.getElementById('trip-form').reset();
             initColorPicker();
             
+            const saveBtn = document.getElementById('save-trip-btn');
+            const deleteBtn = document.getElementById('delete-trip-btn');
+            const modalTitle = document.getElementById('modal-title');
+            const formInputs = document.querySelectorAll('#trip-form input, #trip-form textarea');
+            
+            // 恢復表單可編輯狀態
+            formInputs.forEach(input => input.disabled = false);
+            saveBtn.classList.remove('hidden');
+            document.getElementById('color-picker-label').classList.remove('hidden');
+            document.getElementById('color-picker').classList.remove('hidden');
+
             if (trip) {
-                editingTripId = trip.id; document.getElementById('modal-title').textContent = '編輯行程'; document.getElementById('save-trip-btn').textContent = '更新';
-                document.getElementById('delete-trip-btn').classList.remove('hidden');
+                editingTripId = trip.id; 
+                
+                // 判斷是否為 Google 行程
+                if (trip.isGoogle) {
+                    modalTitle.textContent = '檢視 Google 行程 (唯讀)';
+                    saveBtn.classList.add('hidden');
+                    deleteBtn.classList.add('hidden');
+                    formInputs.forEach(input => input.disabled = true);
+                    document.getElementById('color-picker-label').classList.add('hidden');
+                    document.getElementById('color-picker').classList.add('hidden');
+                } else {
+                    modalTitle.textContent = '編輯行程'; 
+                    saveBtn.textContent = '更新';
+                    deleteBtn.classList.remove('hidden');
+                }
+                
                 document.getElementById('trip-title').value = trip.title || '';
                 document.getElementById('start-date').value = trip.startDate || '';
                 document.getElementById('end-date').value = trip.endDate || '';
@@ -891,12 +913,16 @@
                 document.getElementById('end-time').value = trip.endTime || '';
                 document.getElementById('location').value = trip.location || '';
                 document.getElementById('trip-desc').value = trip.description || '';
-                if (trip.color) { selectedColor = trip.color; initColorPicker(); }
+                
+                if (trip.color && !trip.isGoogle) { selectedColor = trip.color; initColorPicker(); }
             } else {
-                editingTripId = null; document.getElementById('modal-title').textContent = '新增行程'; document.getElementById('save-trip-btn').textContent = '儲存';
-                document.getElementById('delete-trip-btn').classList.add('hidden');
+                editingTripId = null; 
+                modalTitle.textContent = '新增行程'; 
+                saveBtn.textContent = '儲存';
+                deleteBtn.classList.add('hidden');
                 const d = prefillDate || new Date().toISOString().split('T')[0];
-                document.getElementById('start-date').value = d; document.getElementById('end-date').value = d;
+                document.getElementById('start-date').value = d; 
+                document.getElementById('end-date').value = d;
             }
         }
 
