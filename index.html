@@ -145,7 +145,6 @@
         </div>
     </div>
 
-    <!-- 側邊欄行程詳細面板 -->
     <div id="day-detail-panel" class="fixed inset-y-0 right-0 w-full md:w-[380px] bg-white shadow-2xl border-l transform translate-x-full transition-transform duration-300 z-[60] flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-white z-10 mt-safe md:mt-0">
             <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
@@ -226,11 +225,19 @@
         function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
 
         // ==================== UI / Menu Control ====================
+        // 更新：支援電腦版漢堡選單開關功能
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
-            sb.classList.toggle('-translate-x-full');
-            overlay.classList.toggle('hidden');
+            
+            if (window.innerWidth >= 768) {
+                // 電腦版：直接切換 md:hidden 控制顯示與縮回
+                sb.classList.toggle('md:hidden');
+            } else {
+                // 手機版：切換平移樣式與遮罩
+                sb.classList.toggle('-translate-x-full');
+                overlay.classList.toggle('hidden');
+            }
         }
 
         function toggleProfileMenu(e) {
@@ -439,12 +446,10 @@
                 return;
             }
             
-            // 近期活動改為純文字 (無 onclick 與指標)，並顯示開始至結束日期的完整範圍
             c.innerHTML = future.slice(0, 8).map(t => {
                 const startParts = t.startDate.split('-');
                 let dateDisplay = `${startParts[1]}/${startParts[2]}`;
                 
-                // 如果有結束日期，且與開始日期不同，將它連起來
                 if (t.endDate && t.endDate !== t.startDate) {
                     const endParts = t.endDate.split('-');
                     dateDisplay += ` ~ ${endParts[1]}/${endParts[2]}`;
@@ -514,24 +519,52 @@
         const WEEKDAYS = ['週日','週一','週二','週三','週四','週五','週六'];
         const EN_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         
-        // 修正：2026年(民國115年)台灣確切的國定假日列表
-        const TAIWAN_HOLIDAYS = { 
-            "2026-01-01":"元旦",
-            "2026-02-16":"除夕",
-            "2026-02-17":"春節",
-            "2026-02-28":"和平紀念日",
-            "2026-04-04":"兒童節",
-            "2026-04-05":"清明節",
-            "2026-05-01":"勞動節",
-            "2026-06-19":"端午節",
-            "2026-09-25":"中秋節",
-            "2026-09-28":"教師節",
-            "2026-10-10":"國慶日",
-            "2026-10-25":"光復節",
-            "2026-12-25":"行憲紀念日" 
-        };
+        // 更新：改為萬年曆全自動算法，免去每年人工換表
+        function getHoliday(dateStr) { 
+            const d = new Date(dateStr);
+            const mStr = String(d.getMonth() + 1).padStart(2, '0');
+            const dStr = String(d.getDate()).padStart(2, '0');
+            const mdKey = `${mStr}-${dStr}`;
 
-        function getHoliday(dateStr) { return TAIWAN_HOLIDAYS[dateStr] || null; }
+            // 1. 固定國定陽曆節日（不限年份，比對月-日即可）
+            const solarHolidays = {
+                "01-01": "元旦",
+                "02-28": "和平紀念日",
+                "04-04": "兒童節",
+                "05-01": "勞動節",
+                "09-28": "教師節",
+                "10-10": "國慶日",
+                "10-25": "光復節",
+                "12-25": "行憲紀念日"
+            };
+            if (solarHolidays[mdKey]) return solarHolidays[mdKey];
+
+            // 2. 透過已載入的 lunar.min.js 動態分析陰曆與節氣
+            try {
+                const lunar = Lunar.fromDate(d);
+                
+                // 二十四節氣判斷（自動解決清明節在 4/4 或 4/5 變動的問題）
+                if (lunar.getJieQi() === "清明") return "清明節";
+
+                // 傳統陰曆變動節日
+                const lm = lunar.getMonth();
+                const ld = lunar.getDay();
+                if (lm === 1 && ld === 1) return "春節";
+                if (lm === 5 && ld === 5) return "端午節";
+                if (lm === 8 && ld === 15) return "中秋節";
+
+                // 利用「明天的農曆是不是大年初一」來完美推算除夕（自動適應大月30日或小月29日）
+                const nextDay = new Date(d.getTime() + 86400000);
+                const nextLunar = Lunar.fromDate(nextDay);
+                if (nextLunar.getMonth() === 1 && nextLunar.getDay() === 1) {
+                    return "除夕";
+                }
+            } catch (e) {
+                console.error("萬年曆運算發生異常", e);
+            }
+
+            return null; 
+        }
         
         function getShortLunar(dateStr) { 
             try {
@@ -560,6 +593,7 @@
             else renderYearView(c);
         }
 
+        // 修正：修正月曆、週曆跨天行程的關聯配對法
         function getTripsForDate(dateStr) { 
             return trips.filter(t => t.startDate <= dateStr && (!t.endDate || t.endDate >= dateStr)).sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')); 
         }
