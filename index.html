@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我的行事曆</title>
+    
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="我的行事曆">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -316,24 +322,34 @@
                 
                 if (data.items) {
                     googleEvents = data.items.map(item => {
-                        const start = item.start.dateTime || item.start.date;
-                        const end = item.end.dateTime || item.end.date;
+                        const startStr = item.start.dateTime || item.start.date;
+                        let endStr = item.end.dateTime || item.end.date;
+                        
+                        let startDateFinal = startStr.split('T')[0];
+                        let endDateFinal = endStr.split('T')[0];
+
+                        // 修復 Google 日曆全天行程 End Date Exclusive 的問題
+                        if (item.end.date && item.end.date !== item.start.date) {
+                            const d = new Date(item.end.date);
+                            d.setDate(d.getDate() - 1);
+                            endDateFinal = d.toISOString().split('T')[0];
+                        }
+
                         return {
                             id: item.id,
                             title: '📅 ' + (item.summary || '未命名行程'),
-                            startDate: start.split('T')[0],
-                            endDate: end.split('T')[0],
-                            startTime: item.start.dateTime ? start.split('T')[1].substring(0,5) : null,
-                            endTime: item.end.dateTime ? end.split('T')[1].substring(0,5) : null,
+                            startDate: startDateFinal,
+                            endDate: endDateFinal,
+                            startTime: item.start.dateTime ? startStr.split('T')[1].substring(0,5) : null,
+                            endTime: item.end.dateTime ? endStr.split('T')[1].substring(0,5) : null,
                             location: item.location || '',
                             description: item.description || '',
                             color: '#34A853',
-                            isGoogle: true // 標記為 Google 行程
+                            isGoogle: true
                         };
                     });
                 }
                 
-                // 同步成功後更新按鈕樣式
                 const syncBtn = document.getElementById('sync-google-btn');
                 if (syncBtn) {
                     syncBtn.innerHTML = '<i class="fa-brands fa-google text-emerald-500 mr-1"></i> 已同步 Google 日曆';
@@ -374,12 +390,16 @@
                 document.getElementById('header-name').textContent = user.user_metadata?.full_name || user.email;
                 if (user.user_metadata?.avatar_url) document.getElementById('header-avatar').src = user.user_metadata.avatar_url;
 
-                if (session && session.provider_token) {
-                    await fetchGoogleEvents(session.provider_token);
-                }
-
+                // 修改：先設定行事曆 ID，再同步 Google 確保畫面能直接刷新
                 await checkJoinRequest();
                 await loadCalendars();
+                
+                if (session && session.provider_token) {
+                    await fetchGoogleEvents(session.provider_token);
+                    renderCurrentView();
+                    renderUpcoming();
+                }
+
             } else {
                 document.getElementById('google-login-btn').classList.remove('hidden');
                 document.getElementById('header-logged-in').classList.add('hidden');
@@ -398,6 +418,8 @@
                         await supabaseClient.from('calendar_members').insert({ calendar_id: joinId, user_id: currentUser.id, role: 'member' });
                         alert('成功加入共用行事曆！');
                     }
+                    // 加入後自動切換至該行事曆
+                    currentCalendarId = joinId;
                 } catch(e) {}
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
@@ -883,7 +905,6 @@
             const modalTitle = document.getElementById('modal-title');
             const formInputs = document.querySelectorAll('#trip-form input, #trip-form textarea');
             
-            // 恢復表單可編輯狀態
             formInputs.forEach(input => input.disabled = false);
             saveBtn.classList.remove('hidden');
             document.getElementById('color-picker-label').classList.remove('hidden');
@@ -892,7 +913,6 @@
             if (trip) {
                 editingTripId = trip.id; 
                 
-                // 判斷是否為 Google 行程
                 if (trip.isGoogle) {
                     modalTitle.textContent = '檢視 Google 行程 (唯讀)';
                     saveBtn.classList.add('hidden');
@@ -961,3 +981,5 @@
     </script>
 </body>
 </html>
+
+}
