@@ -4,12 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我的行事曆</title>
-    
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="我的行事曆">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -75,7 +69,11 @@
             <button onclick="goToday()" class="hidden md:block px-3 py-1 text-sm border border-[#E8E3FF] rounded-full text-[#2C2C54] hover:bg-slate-50 transition font-medium flex-shrink-0">今天</button>
         </div>
 
-        <div class="flex items-center flex-shrink-0 z-10">
+        <div class="flex items-center flex-shrink-0 z-10 gap-x-1 md:gap-x-2">
+            <button onclick="refreshData()" class="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-[#2C2C54] rounded-full hover:bg-slate-100 transition" title="重新整理同步">
+                <i class="fa-solid fa-rotate-right text-[14px] md:text-base"></i>
+            </button>
+
             <button id="google-login-btn" onclick="signInWithGoogle()" class="flex items-center gap-x-1 px-2.5 py-1.5 bg-white border border-[#E8E3FF] rounded-full text-xs font-semibold text-[#2C2C54] hover:bg-slate-50 transition">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-3.5 h-3.5">
                 <span class="hidden sm:inline">登入</span>
@@ -114,7 +112,6 @@
                     <button id="add-trip-btn" onclick="openTripModal()" class="w-full py-3 text-white rounded-xl text-[15px] font-bold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
                         <i class="fa-solid fa-plus mr-1"></i> 新增行程
                     </button>
-                    <!-- Google 同步按鈕 -->
                     <button id="sync-google-btn" onclick="syncGoogleCalendar()" class="w-full mt-2 py-2.5 text-[#2C2C54] border border-[#E8E3FF] rounded-xl text-[13px] font-bold shadow-sm hover:bg-slate-50 transition">
                         <i class="fa-brands fa-google text-red-500 mr-1"></i> 同步 Google 日曆
                     </button>
@@ -123,7 +120,6 @@
                 <div class="mx-5 my-5 border-b border-slate-100 border-dashed flex-shrink-0"></div>
 
                 <div class="px-5 pb-6 flex flex-col space-y-8 flex-shrink-0">
-                    <!-- 近期活動區塊 -->
                     <div id="upcoming-container" class="hidden flex-col">
                         <div class="text-[14px] font-bold text-slate-500 mb-3 flex items-center justify-between">
                             <div class="flex items-center">
@@ -137,7 +133,6 @@
                         <div id="upcoming-list" class="flex flex-col space-y-1"></div>
                     </div>
                     
-                    <!-- 待買清單區塊 -->
                     <div id="shopping-container" class="hidden flex-col">
                         <div class="text-[14px] font-bold text-slate-500 mb-3 flex items-center justify-between">
                             <span>待買清單</span>
@@ -163,7 +158,6 @@
         </div>
     </div>
 
-    <!-- 右側面板 -->
     <div id="day-detail-panel" class="fixed inset-y-0 right-0 w-full md:w-[380px] bg-white shadow-2xl border-l transform translate-x-full transition-transform duration-300 z-[60] flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-white z-10 mt-safe md:mt-0">
             <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
@@ -176,7 +170,6 @@
     </div>
     <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55] hidden transition-opacity duration-300 cursor-pointer"></div>
 
-    <!-- Trip Modal -->
     <div id="trip-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
         <div class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
@@ -188,7 +181,8 @@
                     <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">行程標題 <span class="text-red-500" id="title-required-star">*</span></label>
                     <input type="text" id="trip-title" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none transition" placeholder="例如：產品開發會議">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">開始日期</label>
                         <input type="date" id="start-date" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
@@ -198,7 +192,7 @@
                         <input type="time" id="start-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">結束日期</label>
                         <input type="date" id="end-date" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
@@ -208,6 +202,7 @@
                         <input type="time" id="end-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                 </div>
+
                 <div>
                     <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">地點</label>
                     <input type="text" id="location" placeholder="例如：台北信義區" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
@@ -229,7 +224,6 @@
         </div>
     </div>
 
-    <!-- Shopping List Edit Modal -->
     <div id="shopping-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
         <div class="bg-white w-full md:w-[400px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[90vh] flex flex-col">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b shrink-0">
@@ -263,7 +257,7 @@
         let isUpcomingExpanded = false;
         let isShoppingExpanded = false;
         let shoppingItems = [];
-        let allRawTrips = []; // 暫存所有行程，用於過濾待買清單
+        let allRawTrips = []; 
 
         function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden'); }
         function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
@@ -282,7 +276,8 @@
 
         function toggleProfileMenu(e) {
             e.stopPropagation();
-            document.getElementById('profile-menu').classList.toggle('hidden');
+            const menu = document.getElementById('profile-menu');
+            menu.classList.toggle('hidden');
         }
 
         window.addEventListener('click', () => {
@@ -304,6 +299,20 @@
         calContainer.addEventListener('touchend', e => { touchendX = e.changedTouches[0].screenX; touchendY = e.changedTouches[0].screenY; handleSwipe(); }, {passive: true});
 
         // ==================== Auth & Sync ====================
+        async function refreshData() {
+            if (!currentUser) return;
+            showLoading();
+            await fetchTrips();
+            
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session && session.provider_token) {
+                await fetchGoogleEvents(session.provider_token);
+                renderCurrentView();
+                renderUpcoming();
+            }
+            hideLoading();
+        }
+
         async function signInWithGoogle() {
             try {
                 const { error } = await supabaseClient.auth.signInWithOAuth({
@@ -522,7 +531,7 @@
             `).join('');
         }
 
-        // ==================== Trips CRUD & Upcoming & Shopping Logic ====================
+        // ==================== Trips CRUD & Upcoming ====================
         let trips = [];
         let googleEvents = []; 
         let editingTripId = null;
@@ -533,7 +542,6 @@
             
             allRawTrips = data || [];
             
-            // 將隱藏版待買清單抽離出來，達成共用同步
             const shoppingTrip = allRawTrips.find(t => t.title === '___SYSTEM_SHOPPING_LIST___');
             if (shoppingTrip) {
                 try { shoppingItems = JSON.parse(shoppingTrip.description); } catch(e) { shoppingItems = []; }
@@ -541,7 +549,6 @@
                 shoppingItems = [];
             }
             
-            // 過濾掉隱藏的系統行程
             const normalTrips = allRawTrips.filter(t => t.title !== '___SYSTEM_SHOPPING_LIST___');
             trips = normalTrips.map(t => ({
                 id: t.id, title: t.title, startDate: t.start_date, endDate: t.end_date,
@@ -608,7 +615,7 @@
             }).join('');
         }
 
-        // ==================== Shopping List (待買清單共用版) ====================
+        // ==================== Shopping List (共用資料庫版) ====================
         function toggleShopping() {
             isShoppingExpanded = !isShoppingExpanded;
             renderShoppingList();
@@ -735,8 +742,7 @@
             closeShoppingModal();
         }
 
-        // ==================== Modal Submit ====================
-        // 修復：改用 JavaScript 掛載事件避免讀取失敗
+        // ==================== Modal Action bindings ====================
         document.getElementById('trip-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!currentCalendarId || !currentUser) return alert('請先登入');
@@ -771,7 +777,7 @@
             }
         });
 
-        // 修復：連動開始與結束日期
+        // 綁定連動日期
         document.getElementById('start-date').addEventListener('change', function(e) {
             const endInput = document.getElementById('end-date');
             endInput.value = e.target.value;
