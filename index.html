@@ -114,6 +114,7 @@
                     <button id="add-trip-btn" onclick="openTripModal()" class="w-full py-3 text-white rounded-xl text-[15px] font-bold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
                         <i class="fa-solid fa-plus mr-1"></i> 新增行程
                     </button>
+                    <!-- Google 同步按鈕 -->
                     <button id="sync-google-btn" onclick="syncGoogleCalendar()" class="w-full mt-2 py-2.5 text-[#2C2C54] border border-[#E8E3FF] rounded-xl text-[13px] font-bold shadow-sm hover:bg-slate-50 transition">
                         <i class="fa-brands fa-google text-red-500 mr-1"></i> 同步 Google 日曆
                     </button>
@@ -122,6 +123,7 @@
                 <div class="mx-5 my-5 border-b border-slate-100 border-dashed flex-shrink-0"></div>
 
                 <div class="px-5 pb-6 flex flex-col space-y-8 flex-shrink-0">
+                    <!-- 近期活動區塊 -->
                     <div id="upcoming-container" class="hidden flex-col">
                         <div class="text-[14px] font-bold text-slate-500 mb-3 flex items-center justify-between">
                             <div class="flex items-center">
@@ -135,6 +137,7 @@
                         <div id="upcoming-list" class="flex flex-col space-y-1"></div>
                     </div>
                     
+                    <!-- 待買清單區塊 -->
                     <div id="shopping-container" class="hidden flex-col">
                         <div class="text-[14px] font-bold text-slate-500 mb-3 flex items-center justify-between">
                             <span>待買清單</span>
@@ -160,6 +163,7 @@
         </div>
     </div>
 
+    <!-- 右側面板 -->
     <div id="day-detail-panel" class="fixed inset-y-0 right-0 w-full md:w-[380px] bg-white shadow-2xl border-l transform translate-x-full transition-transform duration-300 z-[60] flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-white z-10 mt-safe md:mt-0">
             <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
@@ -172,13 +176,14 @@
     </div>
     <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55] hidden transition-opacity duration-300 cursor-pointer"></div>
 
-    <div id="trip-modal" onclick="if (event.target.id === 'trip-modal') closeTripModal()" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
-        <div onclick="event.stopImmediatePropagation()" class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto">
+    <!-- Trip Modal -->
+    <div id="trip-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
+        <div class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
                 <h3 id="modal-title" class="text-2xl font-semibold text-[#2C2C54]">新增行程</h3>
                 <button onclick="closeTripModal()" class="text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
             </div>
-            <form id="trip-form" onsubmit="handleTripFormSubmit(event)" class="p-5 space-y-4">
+            <form id="trip-form" class="p-5 space-y-4">
                 <div>
                     <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">行程標題 <span class="text-red-500" id="title-required-star">*</span></label>
                     <input type="text" id="trip-title" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none transition" placeholder="例如：產品開發會議">
@@ -196,7 +201,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">結束日期</label>
-                        <input type="date" id="end-date" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
+                        <input type="date" id="end-date" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">結束時間</label>
@@ -224,6 +229,7 @@
         </div>
     </div>
 
+    <!-- Shopping List Edit Modal -->
     <div id="shopping-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
         <div class="bg-white w-full md:w-[400px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[90vh] flex flex-col">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b shrink-0">
@@ -257,6 +263,7 @@
         let isUpcomingExpanded = false;
         let isShoppingExpanded = false;
         let shoppingItems = [];
+        let allRawTrips = []; // 暫存所有行程，用於過濾待買清單
 
         function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden'); }
         function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
@@ -286,7 +293,6 @@
         // ==================== Swipe Gesture ====================
         let touchstartX = 0; let touchendX = 0; let touchstartY = 0; let touchendY = 0;
         function handleSwipe() {
-            // 修正：限制只在月曆視圖啟用上下滑動，避免與週曆/年曆垂直滾動衝突
             if (currentView !== 'month') return;
             const diffX = touchstartX - touchendX; const diffY = touchstartY - touchendY;
             if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 50) {
@@ -403,7 +409,6 @@
 
                 await checkJoinRequest();
                 await loadCalendars();
-                await loadShoppingList();
             } else {
                 document.getElementById('google-login-btn').classList.remove('hidden');
                 document.getElementById('header-logged-in').classList.add('hidden');
@@ -517,7 +522,7 @@
             `).join('');
         }
 
-        // ==================== Trips CRUD & Upcoming ====================
+        // ==================== Trips CRUD & Upcoming & Shopping Logic ====================
         let trips = [];
         let googleEvents = []; 
         let editingTripId = null;
@@ -525,15 +530,29 @@
         async function fetchTrips() {
             if (!currentCalendarId) return hideLoading();
             const { data } = await supabaseClient.from('trips').select('*').eq('calendar_id', currentCalendarId);
-            trips = data ? data.map(t => ({
+            
+            allRawTrips = data || [];
+            
+            // 將隱藏版待買清單抽離出來，達成共用同步
+            const shoppingTrip = allRawTrips.find(t => t.title === '___SYSTEM_SHOPPING_LIST___');
+            if (shoppingTrip) {
+                try { shoppingItems = JSON.parse(shoppingTrip.description); } catch(e) { shoppingItems = []; }
+            } else {
+                shoppingItems = [];
+            }
+            
+            // 過濾掉隱藏的系統行程
+            const normalTrips = allRawTrips.filter(t => t.title !== '___SYSTEM_SHOPPING_LIST___');
+            trips = normalTrips.map(t => ({
                 id: t.id, title: t.title, startDate: t.start_date, endDate: t.end_date,
                 startTime: t.start_time, endTime: t.end_time, location: t.location,
                 description: t.description, color: t.color
-            })) : [];
+            }));
             
             hideLoading();
             renderCurrentView();
             renderUpcoming();
+            renderShoppingList();
             if (!document.getElementById('day-detail-panel').classList.contains('translate-x-full')) showDayDetail(selectedDate);
         }
 
@@ -589,33 +608,7 @@
             }).join('');
         }
 
-        // ==================== Shopping List (待買清單) ====================
-        async function loadShoppingList() {
-            if (!currentUser) return;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            
-            if (user?.user_metadata?.shopping_list) {
-                shoppingItems = user.user_metadata.shopping_list;
-            } else {
-                const stored = localStorage.getItem('shoppingList_' + currentUser.id);
-                if (stored) {
-                    shoppingItems = JSON.parse(stored);
-                    await syncShoppingListToDB();
-                    localStorage.removeItem('shoppingList_' + currentUser.id); 
-                } else {
-                    shoppingItems = []; 
-                }
-            }
-            renderShoppingList();
-        }
-
-        async function syncShoppingListToDB() {
-            if (!currentUser) return;
-            await supabaseClient.auth.updateUser({
-                data: { shopping_list: shoppingItems }
-            });
-        }
-
+        // ==================== Shopping List (待買清單共用版) ====================
         function toggleShopping() {
             isShoppingExpanded = !isShoppingExpanded;
             renderShoppingList();
@@ -626,7 +619,7 @@
             if (item) {
                 item.checked = !item.checked;
                 renderShoppingList(); 
-                await syncShoppingListToDB(); 
+                await saveShoppingListToDB(); 
             }
         }
 
@@ -702,6 +695,28 @@
             list.appendChild(row);
         }
 
+        async function saveShoppingListToDB() {
+            if (!currentCalendarId) return;
+            const shoppingTrip = allRawTrips.find(t => t.title === '___SYSTEM_SHOPPING_LIST___');
+            const listString = JSON.stringify(shoppingItems);
+            
+            if (shoppingTrip) {
+                await supabaseClient.from('trips').update({ description: listString }).eq('id', shoppingTrip.id);
+            } else {
+                const dbData = {
+                    calendar_id: currentCalendarId,
+                    title: '___SYSTEM_SHOPPING_LIST___',
+                    start_date: new Date().toISOString().split('T')[0],
+                    end_date: new Date().toISOString().split('T')[0],
+                    description: listString,
+                    color: '#FFFFFF',
+                    created_by: currentUser.id
+                };
+                await supabaseClient.from('trips').insert(dbData);
+            }
+            await fetchTrips(); 
+        }
+
         async function saveShoppingList() {
             showLoading();
             const rows = document.querySelectorAll('.shopping-item-row');
@@ -716,11 +731,59 @@
                 };
             }).filter(item => item !== null);
             
-            await syncShoppingListToDB(); 
-            
+            await saveShoppingListToDB(); 
             closeShoppingModal();
-            renderShoppingList();
-            hideLoading();
+        }
+
+        // ==================== Modal Submit ====================
+        // 修復：改用 JavaScript 掛載事件避免讀取失敗
+        document.getElementById('trip-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!currentCalendarId || !currentUser) return alert('請先登入');
+            
+            try {
+                showLoading();
+                const dbData = {
+                    calendar_id: currentCalendarId, 
+                    title: document.getElementById('trip-title').value.trim(),
+                    start_date: document.getElementById('start-date').value,
+                    end_date: document.getElementById('end-date').value || document.getElementById('start-date').value,
+                    start_time: document.getElementById('start-time').value || null,
+                    end_time: document.getElementById('end-time').value || null,
+                    location: document.getElementById('location').value.trim(),
+                    description: document.getElementById('trip-desc').value.trim(),
+                    color: selectedColor, 
+                    created_by: currentUser.id
+                };
+
+                if (editingTripId) {
+                    await supabaseClient.from('trips').update(dbData).eq('id', editingTripId);
+                } else {
+                    await supabaseClient.from('trips').insert(dbData);
+                }
+                
+                closeTripModal();
+                await fetchTrips();
+            } catch (error) {
+                hideLoading();
+                alert('儲存失敗：' + error.message);
+                console.error(error);
+            }
+        });
+
+        // 修復：連動開始與結束日期
+        document.getElementById('start-date').addEventListener('change', function(e) {
+            const endInput = document.getElementById('end-date');
+            endInput.value = e.target.value;
+            endInput.min = e.target.value;
+        });
+
+        async function deleteTrip() {
+            if (!editingTripId || !confirm('確定要永久刪除此行程嗎？')) return;
+            showLoading();
+            await supabaseClient.from('trips').delete().eq('id', editingTripId);
+            closeTripModal();
+            fetchTrips();
         }
 
         // ==================== Render Core ====================
@@ -1045,6 +1108,7 @@
                 const d = prefillDate || new Date().toISOString().split('T')[0];
                 document.getElementById('start-date').value = d; 
                 document.getElementById('end-date').value = d;
+                document.getElementById('end-date').min = d;
             }
         }
 
