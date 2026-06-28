@@ -3,13 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的行事曆</title>
-    
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="我的行事曆">
-
+    <title>行事曆</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -36,7 +30,8 @@
         .view-btn.active { background: #4F97E9 !important; color: #ffffff !important; }
         
         .holiday-badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: #F0958B; color: #ffffff; font-weight: 600; display: inline-block; white-space: nowrap; }
-        .lunar-badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: #FFDE96; color: #ffffff; font-weight: 600; display: inline-block; white-space: nowrap; text-shadow: 0px 0px 2px rgba(0,0,0,0.15); }
+        /* 更新：農曆標籤改為白底黑字，加上淺灰邊框 */
+        .lunar-badge { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: #ffffff; color: #000000; border: 1px solid #cbd5e1; font-weight: 600; display: inline-block; white-space: nowrap; }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: #E8E3FF; border-radius: 10px; }
@@ -99,7 +94,7 @@
                 <button onclick="toggleSidebar()" class="text-slate-400 hover:text-slate-600 px-2 py-1"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
             
-            <div class="flex-1 overflow-y-auto min-h-0 flex flex-col pt-5">
+            <div class="flex-1 overflow-y-auto min-h-0 flex flex-col pt-5 no-scrollbar">
                 <div id="calendar-lists-container" class="px-5 hidden flex-col">
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-[13px] font-bold text-slate-500">我的行事曆本</span>
@@ -114,19 +109,40 @@
                     <button id="add-trip-btn" onclick="openTripModal()" class="w-full py-3 text-white rounded-xl text-[15px] font-bold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
                         <i class="fa-solid fa-plus mr-1"></i> 新增行程
                     </button>
+                    <!-- Google 同步按鈕 -->
                     <button id="sync-google-btn" onclick="syncGoogleCalendar()" class="w-full mt-2 py-2.5 text-[#2C2C54] border border-[#E8E3FF] rounded-xl text-[13px] font-bold shadow-sm hover:bg-slate-50 transition">
                         <i class="fa-brands fa-google text-red-500 mr-1"></i> 同步 Google 日曆
                     </button>
                 </div>
 
-                <div class="mx-5 my-5 border-b border-slate-100 border-dashed"></div>
+                <div class="mx-5 my-5 border-b border-slate-100 border-dashed flex-shrink-0"></div>
 
-                <div id="upcoming-container" class="px-5 pb-6 hidden flex-col flex-1">
-                    <div class="text-[14px] font-bold text-slate-500 mb-4 flex items-center justify-between">
-                        <span>近期活動 (30天內)</span>
-                        <span id="upcoming-count" class="bg-[#EF8275] text-white px-2 py-0.5 rounded-full text-[10px]">0</span>
+                <div class="px-5 pb-6 flex flex-col space-y-8 flex-shrink-0">
+                    <!-- 近期活動區塊 -->
+                    <div id="upcoming-container" class="hidden flex-col">
+                        <div class="text-[14px] font-bold text-slate-500 mb-3 flex items-center justify-between">
+                            <div class="flex items-center">
+                                <span>近期活動</span>
+                                <span id="upcoming-count" class="bg-[#EF8275] text-white px-2 py-0.5 rounded-full text-[10px] ml-2">0</span>
+                            </div>
+                            <button id="upcoming-toggle-btn" class="hidden text-slate-400 hover:text-[#4F97E9] px-1 transition" onclick="toggleUpcoming()">
+                                <i class="fa-solid fa-plus text-[12px]"></i>
+                            </button>
+                        </div>
+                        <div id="upcoming-list" class="flex flex-col space-y-1"></div>
                     </div>
-                    <div id="upcoming-list" class="flex flex-col space-y-1"></div>
+                    
+                    <!-- 待買清單區塊 (新增) -->
+                    <div id="shopping-container" class="hidden flex-col">
+                        <div class="text-[14px] font-bold text-slate-500 mb-3 flex items-center justify-between">
+                            <span>待買清單</span>
+                            <div class="flex items-center gap-2">
+                                <button id="shopping-edit-btn" class="text-slate-400 hover:text-[#4F97E9] transition" onclick="openShoppingModal()"><i class="fa-solid fa-pen text-[12px]"></i></button>
+                                <button id="shopping-toggle-btn" class="hidden text-slate-400 hover:text-[#4F97E9] transition px-1" onclick="toggleShopping()"><i class="fa-solid fa-plus text-[12px]"></i></button>
+                            </div>
+                        </div>
+                        <div id="shopping-list" class="flex flex-col border-t border-slate-100 pt-1"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -142,6 +158,7 @@
         </div>
     </div>
 
+    <!-- 右側面板 -->
     <div id="day-detail-panel" class="fixed inset-y-0 right-0 w-full md:w-[380px] bg-white shadow-2xl border-l transform translate-x-full transition-transform duration-300 z-[60] flex flex-col">
         <div class="p-5 border-b flex justify-between items-center bg-white z-10 mt-safe md:mt-0">
             <div class="font-bold text-[19px] text-[#2C2C54] flex items-center gap-3" id="detail-date-title"></div>
@@ -152,9 +169,9 @@
             <button onclick="openTripModalFromDetail()" class="w-full py-3.5 text-white rounded-[14px] font-bold text-[15px] shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">在此日期新增行程</button>
         </div>
     </div>
-
     <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55] hidden transition-opacity duration-300 cursor-pointer"></div>
 
+    <!-- Trip Modal -->
     <div id="trip-modal" onclick="if (event.target.id === 'trip-modal') closeTripModal()" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
         <div onclick="event.stopImmediatePropagation()" class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
@@ -207,6 +224,26 @@
         </div>
     </div>
 
+    <!-- Shopping List Edit Modal (新增) -->
+    <div id="shopping-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
+        <div class="bg-white w-full md:w-[400px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[90vh] flex flex-col">
+            <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b shrink-0">
+                <h3 class="text-xl font-bold text-[#2C2C54]">編輯待買清單</h3>
+                <button onclick="closeShoppingModal()" class="text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
+            </div>
+            <div class="p-5 flex-1 overflow-y-auto no-scrollbar">
+                <div id="shopping-edit-list" class="space-y-3"></div>
+                <button type="button" onclick="addShoppingItemInput()" class="mt-4 flex items-center gap-1.5 text-sm text-[#4F97E9] font-bold hover:opacity-80 transition">
+                    <i class="fa-solid fa-circle-plus"></i> 新增項目
+                </button>
+            </div>
+            <div class="p-5 border-t bg-slate-50 flex gap-3 shrink-0 rounded-b-3xl">
+                <button type="button" onclick="closeShoppingModal()" class="flex-1 py-3 bg-white border border-[#E8E3FF] rounded-2xl text-[#2C2C54] hover:bg-slate-50 font-bold transition">取消</button>
+                <button type="button" onclick="saveShoppingList()" class="flex-1 py-3 text-white rounded-2xl font-bold bg-[#4F97E9] hover:opacity-90 transition shadow-sm">儲存</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ==================== Supabase Client ====================
         const SUPABASE_URL = 'https://qemfwpdkhbbqnxrcmuyi.supabase.co';
@@ -218,6 +255,11 @@
         let currentCalendarId = null;
         let isEditingCalendars = false;
 
+        // UI 狀態控制變數
+        let isUpcomingExpanded = false;
+        let isShoppingExpanded = false;
+        let shoppingItems = [];
+
         function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden'); }
         function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
 
@@ -225,7 +267,6 @@
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
-            
             if (window.innerWidth >= 768) {
                 sb.classList.toggle('md:hidden');
             } else {
@@ -236,54 +277,32 @@
 
         function toggleProfileMenu(e) {
             e.stopPropagation();
-            const menu = document.getElementById('profile-menu');
-            menu.classList.toggle('hidden');
+            document.getElementById('profile-menu').classList.toggle('hidden');
         }
 
         window.addEventListener('click', () => {
             const menu = document.getElementById('profile-menu');
-            if (menu && !menu.classList.contains('hidden')) {
-                menu.classList.add('hidden');
-            }
+            if (menu && !menu.classList.contains('hidden')) menu.classList.add('hidden');
         });
 
         // ==================== Swipe Gesture ====================
-        let touchstartX = 0;
-        let touchendX = 0;
-        let touchstartY = 0;
-        let touchendY = 0;
-
+        let touchstartX = 0; let touchendX = 0; let touchstartY = 0; let touchendY = 0;
         function handleSwipe() {
-            const diffX = touchstartX - touchendX;
-            const diffY = touchstartY - touchendY;
+            const diffX = touchstartX - touchendX; const diffY = touchstartY - touchendY;
             if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 50) {
-                if (diffY > 0) nextPeriod(); 
-                else prevPeriod();           
+                if (diffY > 0) nextPeriod(); else prevPeriod();           
             }
         }
-
         const calContainer = document.getElementById('calendar-content');
-        calContainer.addEventListener('touchstart', e => {
-            touchstartX = e.changedTouches[0].screenX;
-            touchstartY = e.changedTouches[0].screenY;
-        }, {passive: true});
-        
-        calContainer.addEventListener('touchend', e => {
-            touchendX = e.changedTouches[0].screenX;
-            touchendY = e.changedTouches[0].screenY;
-            handleSwipe();
-        }, {passive: true});
-
+        calContainer.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; touchstartY = e.changedTouches[0].screenY; }, {passive: true});
+        calContainer.addEventListener('touchend', e => { touchendX = e.changedTouches[0].screenX; touchendY = e.changedTouches[0].screenY; handleSwipe(); }, {passive: true});
 
         // ==================== Auth & Sync ====================
         async function signInWithGoogle() {
             try {
                 const { error } = await supabaseClient.auth.signInWithOAuth({
                     provider: 'google', 
-                    options: { 
-                        redirectTo: 'https://austing2021-debug.github.io/calendar/',
-                        queryParams: { prompt: 'select_account' } 
-                    }
+                    options: { redirectTo: 'https://austing2021-debug.github.io/calendar/', queryParams: { prompt: 'select_account' } }
                 });
                 if (error) throw error;
             } catch (error) { alert('Google 登入失敗：' + error.message); }
@@ -313,22 +332,16 @@
                 const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
                 const data = await res.json();
-                
-                if (!res.ok) {
-                    throw new Error(data.error?.message || '未知的 API 錯誤');
-                }
+                if (!res.ok) throw new Error(data.error?.message || '未知的 API 錯誤');
                 
                 if (data.items) {
                     googleEvents = data.items.map(item => {
                         const startStr = item.start.dateTime || item.start.date;
                         let endStr = item.end.dateTime || item.end.date;
-                        
                         let startDateFinal = startStr.split('T')[0];
                         let endDateFinal = endStr.split('T')[0];
-
-                        // 修復 Google 日曆全天行程 End Date Exclusive 的問題
+                        
                         if (item.end.date && item.end.date !== item.start.date) {
                             const d = new Date(item.end.date);
                             d.setDate(d.getDate() - 1);
@@ -338,14 +351,11 @@
                         return {
                             id: item.id,
                             title: '📅 ' + (item.summary || '未命名行程'),
-                            startDate: startDateFinal,
-                            endDate: endDateFinal,
+                            startDate: startDateFinal, endDate: endDateFinal,
                             startTime: item.start.dateTime ? startStr.split('T')[1].substring(0,5) : null,
                             endTime: item.end.dateTime ? endStr.split('T')[1].substring(0,5) : null,
-                            location: item.location || '',
-                            description: item.description || '',
-                            color: '#34A853',
-                            isGoogle: true
+                            location: item.location || '', description: item.description || '',
+                            color: '#34A853', isGoogle: true
                         };
                     });
                 }
@@ -357,7 +367,6 @@
                     syncBtn.classList.add('bg-emerald-50', 'border-emerald-200');
                     syncBtn.disabled = true; 
                 }
-                
                 hideLoading();
             } catch(e) {
                 console.error("Fetch Google Events failed:", e);
@@ -366,10 +375,7 @@
             }
         }
 
-        async function signOut() { 
-            await supabaseClient.auth.signOut(); 
-            location.reload(); 
-        }
+        async function signOut() { await supabaseClient.auth.signOut(); location.reload(); }
 
         async function checkUserAndInitialize() {
             showLoading();
@@ -384,22 +390,20 @@
                 
                 document.getElementById('calendar-lists-container').classList.remove('hidden');
                 document.getElementById('calendar-lists-container').classList.add('flex');
+                
                 document.getElementById('upcoming-container').classList.remove('hidden');
                 document.getElementById('upcoming-container').classList.add('flex');
+                document.getElementById('shopping-container').classList.remove('hidden');
+                document.getElementById('shopping-container').classList.add('flex');
                 
                 document.getElementById('header-name').textContent = user.user_metadata?.full_name || user.email;
                 if (user.user_metadata?.avatar_url) document.getElementById('header-avatar').src = user.user_metadata.avatar_url;
 
-                // 修改：先設定行事曆 ID，再同步 Google 確保畫面能直接刷新
+                if (session && session.provider_token) await fetchGoogleEvents(session.provider_token);
+
                 await checkJoinRequest();
                 await loadCalendars();
-                
-                if (session && session.provider_token) {
-                    await fetchGoogleEvents(session.provider_token);
-                    renderCurrentView();
-                    renderUpcoming();
-                }
-
+                loadShoppingList();
             } else {
                 document.getElementById('google-login-btn').classList.remove('hidden');
                 document.getElementById('header-logged-in').classList.add('hidden');
@@ -418,8 +422,6 @@
                         await supabaseClient.from('calendar_members').insert({ calendar_id: joinId, user_id: currentUser.id, role: 'member' });
                         alert('成功加入共用行事曆！');
                     }
-                    // 加入後自動切換至該行事曆
-                    currentCalendarId = joinId;
                 } catch(e) {}
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
@@ -428,12 +430,8 @@
         async function generateShareLink() {
             if (!currentCalendarId) return alert('請先選擇一個行事曆！');
             const link = `${window.location.origin}${window.location.pathname}?join=${currentCalendarId}`;
-            try { 
-                await navigator.clipboard.writeText(link); 
-                alert('🎉 共用連結已複製！傳送給朋友即可邀請他們加入。');
-            } catch (err) { 
-                prompt('請手動複製以下連結分享：', link); 
-            }
+            try { await navigator.clipboard.writeText(link); alert('🎉 共用連結已複製！傳送給朋友即可邀請他們加入。');
+            } catch (err) { prompt('請手動複製以下連結分享：', link); }
         }
 
         async function loadCalendars() {
@@ -519,7 +517,7 @@
             `).join('');
         }
 
-        // ==================== Trips CRUD ====================
+        // ==================== Trips CRUD & Upcoming ====================
         let trips = [];
         let googleEvents = []; 
         let editingTripId = null;
@@ -539,33 +537,46 @@
             if (!document.getElementById('day-detail-panel').classList.contains('translate-x-full')) showDayDetail(selectedDate);
         }
 
+        function toggleUpcoming() {
+            isUpcomingExpanded = !isUpcomingExpanded;
+            renderUpcoming();
+        }
+
         function renderUpcoming() {
             const c = document.getElementById('upcoming-list');
             const countEl = document.getElementById('upcoming-count');
+            const toggleBtn = document.getElementById('upcoming-toggle-btn');
             if (!c || !countEl || !currentUser) return;
             
             const today = new Date().toISOString().split('T')[0];
             const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-            
             const allTrips = [...trips, ...googleEvents];
-            const future = allTrips.filter(t => t.startDate >= today && t.startDate <= nextMonth)
-                                .sort((a,b) => a.startDate.localeCompare(b.startDate));
+            const future = allTrips.filter(t => t.startDate >= today && t.startDate <= nextMonth).sort((a,b) => a.startDate.localeCompare(b.startDate));
+            
             countEl.textContent = future.length;
             
             if (future.length === 0) {
+                toggleBtn.classList.add('hidden');
                 c.innerHTML = `<div class="px-3 py-4 text-xs text-slate-400 text-center bg-slate-50 rounded-xl">未來一個月內無行程</div>`;
                 return;
             }
             
-            c.innerHTML = future.slice(0, 8).map(t => {
+            if (future.length > 3) {
+                toggleBtn.classList.remove('hidden');
+                toggleBtn.innerHTML = isUpcomingExpanded ? '<i class="fa-solid fa-minus text-[12px]"></i>' : '<i class="fa-solid fa-plus text-[12px]"></i>';
+            } else {
+                toggleBtn.classList.add('hidden');
+            }
+            
+            const limit = isUpcomingExpanded ? future.length : 3;
+            
+            c.innerHTML = future.slice(0, limit).map(t => {
                 const startParts = t.startDate.split('-');
                 let dateDisplay = `${startParts[1]}/${startParts[2]}`;
-                
                 if (t.endDate && t.endDate !== t.startDate) {
                     const endParts = t.endDate.split('-');
                     dateDisplay += ` ~ ${endParts[1]}/${endParts[2]}`;
                 }
-
                 return `
                 <div class="flex items-start gap-x-2.5 py-1.5 pl-2 cursor-pointer hover:bg-slate-50 transition rounded-lg" onclick="openTripModal(${JSON.stringify(t).replace(/"/g,'&quot;')})">
                     <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5" style="background:${t.color||'#EF8275'}"></div>
@@ -578,46 +589,123 @@
             }).join('');
         }
 
-        async function handleTripFormSubmit(e) {
-            e.preventDefault();
-            if (!currentCalendarId || !currentUser) return alert('請先登入');
-            
-            try {
-                showLoading();
-                const dbData = {
-                    calendar_id: currentCalendarId, 
-                    title: document.getElementById('trip-title').value.trim(),
-                    start_date: document.getElementById('start-date').value,
-                    end_date: document.getElementById('end-date').value || document.getElementById('start-date').value,
-                    start_time: document.getElementById('start-time').value || null,
-                    end_time: document.getElementById('end-time').value || null,
-                    location: document.getElementById('location').value.trim(),
-                    description: document.getElementById('trip-desc').value.trim(),
-                    color: selectedColor, 
-                    created_by: currentUser.id
-                };
+        // ==================== Shopping List (待買清單) ====================
+        function loadShoppingList() {
+            if (!currentUser) return;
+            const stored = localStorage.getItem('shoppingList_' + currentUser.id);
+            if (stored) {
+                shoppingItems = JSON.parse(stored);
+            } else {
+                shoppingItems = []; // 初始化
+            }
+            renderShoppingList();
+        }
 
-                if (editingTripId) {
-                    await supabaseClient.from('trips').update(dbData).eq('id', editingTripId);
-                } else {
-                    await supabaseClient.from('trips').insert(dbData);
-                }
-                
-                closeTripModal();
-                await fetchTrips();
-            } catch (error) {
-                hideLoading();
-                alert('儲存失敗：' + error.message);
-                console.error(error);
+        function toggleShopping() {
+            isShoppingExpanded = !isShoppingExpanded;
+            renderShoppingList();
+        }
+
+        function toggleShoppingItemStatus(id) {
+            const item = shoppingItems.find(i => i.id == id);
+            if (item) {
+                item.checked = !item.checked;
+                if (currentUser) localStorage.setItem('shoppingList_' + currentUser.id, JSON.stringify(shoppingItems));
+                renderShoppingList();
             }
         }
 
-        async function deleteTrip() {
-            if (!editingTripId || !confirm('確定要永久刪除此行程嗎？')) return;
-            showLoading();
-            await supabaseClient.from('trips').delete().eq('id', editingTripId);
-            closeTripModal();
-            fetchTrips();
+        function renderShoppingList() {
+            const container = document.getElementById('shopping-list');
+            const toggleBtn = document.getElementById('shopping-toggle-btn');
+            if (!container || !currentUser) return;
+
+            if (shoppingItems.length === 0) {
+                toggleBtn.classList.add('hidden');
+                container.innerHTML = `<div class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl">目前無待辦項目</div>`;
+                return;
+            }
+
+            if (shoppingItems.length > 3) {
+                toggleBtn.classList.remove('hidden');
+                toggleBtn.innerHTML = isShoppingExpanded ? '<i class="fa-solid fa-minus text-[12px]"></i>' : '<i class="fa-solid fa-plus text-[12px]"></i>';
+            } else {
+                toggleBtn.classList.add('hidden');
+            }
+
+            const limit = isShoppingExpanded ? shoppingItems.length : 3;
+
+            container.innerHTML = shoppingItems.slice(0, limit).map(item => `
+                <div class="flex items-start gap-3 py-2 cursor-pointer hover:bg-slate-50 rounded-lg px-2 transition border-b border-slate-100 last:border-0" onclick="toggleShoppingItemStatus('${item.id}')">
+                    <div class="w-4 h-4 rounded-full border ${item.checked ? 'bg-[#4F97E9] border-[#4F97E9]' : 'border-slate-300'} flex items-center justify-center flex-shrink-0 mt-[2px] transition-colors">
+                        ${item.checked ? '<i class="fa-solid fa-check text-white text-[9px]"></i>' : ''}
+                    </div>
+                    <div class="flex-col min-w-0 leading-tight flex w-full">
+                        <span class="text-[13px] font-bold ${item.checked ? 'text-slate-400 line-through' : 'text-[#2C2C54]'} truncate">${item.title}</span>
+                        ${item.subtext ? `<span class="text-[11px] text-slate-400 mt-0.5 truncate ${item.checked ? 'line-through' : ''}">${item.subtext}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openShoppingModal() {
+            const list = document.getElementById('shopping-edit-list');
+            list.innerHTML = '';
+            if (shoppingItems.length === 0) {
+                addShoppingItemInput(); // 預設留一行空白
+            } else {
+                shoppingItems.forEach(item => addShoppingItemInput(item));
+            }
+            document.getElementById('shopping-modal').classList.remove('hidden');
+            document.getElementById('shopping-modal').classList.add('flex');
+        }
+        
+        function closeShoppingModal() {
+            document.getElementById('shopping-modal').classList.remove('flex');
+            document.getElementById('shopping-modal').classList.add('hidden');
+        }
+
+        function addShoppingItemInput(item = null) {
+            const list = document.getElementById('shopping-edit-list');
+            const id = item ? item.id : Date.now() + Math.random().toString(36).substr(2, 9);
+            const title = item ? item.title : '';
+            const subtext = item ? item.subtext : '';
+            const checked = item ? item.checked : false;
+
+            const row = document.createElement('div');
+            row.className = 'shopping-item-row flex items-start gap-2 bg-white p-3 rounded-xl border border-slate-100 shadow-sm relative';
+            row.dataset.id = id;
+            row.dataset.checked = checked;
+            
+            row.innerHTML = `
+                <div class="flex-1 space-y-2 w-full min-w-0">
+                    <input type="text" placeholder="項目名稱 (例如：回覆郵件)" class="item-title w-full px-3 py-2 bg-slate-50 border-transparent focus:border-[#4F97E9] focus:bg-white rounded-lg text-sm transition outline-none font-bold text-[#2C2C54]" value="${title}">
+                    <input type="text" placeholder="備註 (選填，例如：12月中繳交)" class="item-subtext w-full px-3 py-1.5 bg-slate-50 border-transparent focus:border-[#4F97E9] focus:bg-white rounded-lg text-xs text-slate-500 transition outline-none" value="${subtext}">
+                </div>
+                <button type="button" class="text-slate-300 hover:text-red-500 p-2 transition" onclick="this.closest('.shopping-item-row').remove()"><i class="fa-solid fa-trash-can"></i></button>
+            `;
+            list.appendChild(row);
+        }
+
+        function saveShoppingList() {
+            const rows = document.querySelectorAll('.shopping-item-row');
+            shoppingItems = Array.from(rows).map(row => {
+                const titleInput = row.querySelector('.item-title').value.trim();
+                if (!titleInput) return null;
+                return {
+                    id: row.dataset.id,
+                    title: titleInput,
+                    subtext: row.querySelector('.item-subtext').value.trim(),
+                    checked: row.dataset.checked === 'true'
+                };
+            }).filter(item => item !== null);
+            
+            if (currentUser) {
+                localStorage.setItem('shoppingList_' + currentUser.id, JSON.stringify(shoppingItems));
+            }
+            
+            closeShoppingModal();
+            renderShoppingList();
         }
 
         // ==================== Render Core ====================
@@ -865,7 +953,7 @@
         function showDayDetail(dateStr) {
             selectedDate = dateStr;
             const d = new Date(dateStr), holiday = getHoliday(dateStr), lunarTxt = getShortLunar(dateStr);
-            let badgeHtml = holiday ? `<span class="bg-[#F0958B] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${holiday}</span>` : `<span class="bg-[#FFDE96] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide" style="text-shadow: 0px 0px 2px rgba(0,0,0,0.15);">${lunarTxt}</span>`;
+            let badgeHtml = holiday ? `<span class="bg-[#F0958B] text-white text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${holiday}</span>` : `<span class="bg-[#ffffff] text-black border border-slate-300 text-[11px] px-2 py-0.5 rounded-lg font-semibold tracking-wide">${lunarTxt}</span>`;
             
             document.getElementById('detail-date-title').innerHTML = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 (${WEEKDAYS[d.getDay()]}) ${badgeHtml}`;
             
@@ -933,7 +1021,6 @@
                 document.getElementById('end-time').value = trip.endTime || '';
                 document.getElementById('location').value = trip.location || '';
                 document.getElementById('trip-desc').value = trip.description || '';
-                
                 if (trip.color && !trip.isGoogle) { selectedColor = trip.color; initColorPicker(); }
             } else {
                 editingTripId = null; 
@@ -981,5 +1068,3 @@
     </script>
 </body>
 </html>
-
-}
