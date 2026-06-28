@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我的行事曆</title>
+    
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="我的行事曆">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -171,54 +177,55 @@
     <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55] hidden transition-opacity duration-300 cursor-pointer"></div>
 
     <div id="trip-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
-        <div class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto">
+        <div class="bg-white w-full max-w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto overflow-x-hidden flex flex-col">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
                 <h3 id="modal-title" class="text-2xl font-semibold text-[#2C2C54]">新增行程</h3>
                 <button onclick="closeTripModal()" class="text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
             </div>
-            <form id="trip-form" class="p-5 space-y-4">
+            <form id="trip-form" class="p-4 md:p-5 space-y-4">
                 <div>
                     <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">行程標題 <span class="text-red-500" id="title-required-star">*</span></label>
-                    <input type="text" id="trip-title" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none transition" placeholder="例如：產品開發會議">
+                    <input type="text" id="trip-title" required class="w-full px-3 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none transition" placeholder="例如：產品開發會議">
                 </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-3 md:gap-4">
                     <div>
-                        <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">開始日期</label>
-                        <input type="date" id="start-date" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">開始日期</label>
+                        <input type="date" id="start-date" required class="w-full px-2 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">開始時間 (留白為全天)</label>
-                        <input type="time" id="start-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">開始時間 <span class="text-[10px] text-slate-400 font-normal">(留白全天)</span></label>
+                        <input type="time" id="start-time" class="w-full px-2 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <div class="grid grid-cols-2 gap-3 md:gap-4">
                     <div>
-                        <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">結束日期</label>
-                        <input type="date" id="end-date" required class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">結束日期</label>
+                        <input type="date" id="end-date" required class="w-full px-2 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">結束時間</label>
-                        <input type="time" id="end-time" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">結束時間</label>
+                        <input type="time" id="end-time" class="w-full px-2 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">地點</label>
-                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none">
+                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full px-3 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">描述 / 備註</label>
-                    <textarea id="trip-desc" rows="2" class="w-full px-4 py-3 border border-[#E8E3FF] rounded-2xl focus:border-[#4F97E9] outline-none resize-none transition" placeholder="會議議程..."></textarea>
+                    <textarea id="trip-desc" rows="2" class="w-full px-3 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none resize-none transition" placeholder="會議議程..."></textarea>
                 </div>
                 <div>
                     <label id="color-picker-label" class="block text-sm font-semibold mb-2 text-[#2C2C54]">顏色標記</label>
-                    <div class="flex flex-wrap gap-3" id="color-picker"></div>
+                    <div class="flex flex-wrap gap-2 md:gap-3" id="color-picker"></div>
                 </div>
                 <div class="flex gap-3 pt-3 sticky bottom-0 bg-white pb-2 border-t mt-4">
-                    <button type="button" id="delete-trip-btn" onclick="deleteTrip()" class="hidden w-12 flex items-center justify-center py-3 border border-red-200 text-red-500 rounded-2xl hover:bg-red-50 transition-colors"><i class="fa-solid fa-trash"></i></button>
-                    <button type="button" onclick="closeTripModal()" class="flex-1 py-3 border border-[#E8E3FF] rounded-2xl text-[#2C2C54] hover:bg-slate-50 transition-colors font-medium">取消</button>
-                    <button type="submit" id="save-trip-btn" class="flex-1 py-3.5 text-white rounded-2xl font-semibold shadow-sm hover:opacity-90 transition-opacity bg-[#4F97E9]">儲存</button>
+                    <button type="button" id="delete-trip-btn" onclick="deleteTrip()" class="hidden w-12 flex items-center justify-center py-2 md:py-3 border border-red-200 text-red-500 rounded-xl md:rounded-2xl hover:bg-red-50 transition-colors"><i class="fa-solid fa-trash"></i></button>
+                    <button type="button" onclick="closeTripModal()" class="flex-1 py-2 md:py-3 text-[13px] md:text-base border border-[#E8E3FF] rounded-xl md:rounded-2xl text-[#2C2C54] hover:bg-slate-50 transition-colors font-medium">取消</button>
+                    <button type="submit" id="save-trip-btn" class="flex-1 py-2 md:py-3 text-[13px] md:text-base text-white rounded-xl md:rounded-2xl font-semibold shadow-sm hover:opacity-90 transition-opacity bg-[#4F97E9]">儲存</button>
                 </div>
             </form>
         </div>
@@ -436,6 +443,7 @@
                         await supabaseClient.from('calendar_members').insert({ calendar_id: joinId, user_id: currentUser.id, role: 'member' });
                         alert('成功加入共用行事曆！');
                     }
+                    currentCalendarId = joinId;
                 } catch(e) {}
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
@@ -615,7 +623,7 @@
             }).join('');
         }
 
-        // ==================== Shopping List (共用資料庫版) ====================
+        // ==================== Shopping List ====================
         function toggleShopping() {
             isShoppingExpanded = !isShoppingExpanded;
             renderShoppingList();
