@@ -118,7 +118,6 @@
                     <button id="add-trip-btn" onclick="openTripModal()" class="w-full py-3 text-white rounded-xl text-[15px] font-bold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
                         <i class="fa-solid fa-plus mr-1"></i> 新增行程
                     </button>
-                    <!-- Google 同步按鈕 -->
                     <button id="sync-google-btn" onclick="syncGoogleCalendar()" class="w-full mt-2 py-2.5 text-[#2C2C54] border border-[#E8E3FF] rounded-xl text-[13px] font-bold shadow-sm hover:bg-slate-50 transition">
                         <i class="fa-brands fa-google text-red-500 mr-1"></i> 同步 Google 日曆
                     </button>
@@ -178,7 +177,7 @@
     </div>
     <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55] hidden transition-opacity duration-300 cursor-pointer"></div>
 
-    <!-- Trip Modal (修正包含方框 UI 與防呆 min) -->
+    <!-- Trip Modal (修正：緊湊間距 gap-2 與 px-2 以防止手機跑版) -->
     <div id="trip-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
         <div class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto overflow-x-hidden flex flex-col">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
@@ -187,17 +186,16 @@
             </div>
             <form id="trip-form" class="p-4 md:p-5 space-y-4 md:space-y-5">
                 <div class="min-w-0">
-                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">行程標題 <span class="text-red-500" id="title-required-star">*</span></label>
-                    <input type="text" id="trip-title" required class="w-full px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none transition bg-white" placeholder="例如：產品開發會議">
+                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54] truncate">行程標題 <span class="text-red-500" id="title-required-star">*</span></label>
+                    <input type="text" id="trip-title" required class="w-full min-w-0 px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none transition bg-white" placeholder="例如：產品開發會議">
                 </div>
                 
-                <!-- 新增：全天與循環勾選區塊 -->
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 py-1 text-[13px] md:text-sm text-[#2C2C54] font-semibold">
-                    <label class="flex items-center gap-1.5 cursor-pointer">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 py-1 text-[13px] md:text-sm text-[#2C2C54] font-semibold min-w-0">
+                    <label class="flex items-center gap-1.5 cursor-pointer shrink-0">
                         <input type="checkbox" id="all-day-checkbox" class="accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" onchange="toggleAllDay()"> 全天
                     </label>
-                    <div class="w-[1px] h-4 bg-slate-300 mx-1"></div>
-                    <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                    <div class="w-[1px] h-4 bg-slate-300 mx-1 shrink-0"></div>
+                    <div class="flex flex-wrap items-center gap-2 md:gap-3 shrink-0">
                         <span class="text-slate-500">重複</span>
                         <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="daily" onchange="handleRepeatCheck(this)"> 天</label>
                         <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="weekly" onchange="handleRepeatCheck(this)"> 週</label>
@@ -206,55 +204,54 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-2 md:gap-4">
                     <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">開始日期</label>
-                        <input type="date" id="start-date" required class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">開始日期</label>
+                        <input type="date" id="start-date" required class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
                     </div>
                     <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">開始時間</label>
-                        <input type="time" id="start-time" class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">開始時間</label>
+                        <input type="time" id="start-time" class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-2 md:gap-4">
                     <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">結束日期</label>
-                        <input type="date" id="end-date" required class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block transition-colors">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">結束日期</label>
+                        <input type="date" id="end-date" required class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block transition-colors">
                     </div>
                     <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">結束時間</label>
-                        <input type="time" id="end-time" class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block transition-colors">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">結束時間</label>
+                        <input type="time" id="end-time" class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block transition-colors">
                     </div>
                 </div>
 
-                <!-- 隱藏的結束條件 -->
-                <div id="repeat-options" class="hidden grid-cols-2 gap-4 border-t border-[#E8E3FF] pt-4">
+                <div id="repeat-options" class="hidden grid-cols-2 gap-2 md:gap-4 border-t border-[#E8E3FF] pt-4 mt-2">
                     <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">結束條件</label>
-                        <select id="repeat-end-type" class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block" onchange="toggleRepeatEndInput()">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54] truncate">結束條件</label>
+                        <select id="repeat-end-type" class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block" onchange="toggleRepeatEndInput()">
                             <option value="forever">一直循環</option>
                             <option value="until_date">直到某一天</option>
                             <option value="count">循環幾次</option>
                         </select>
                     </div>
                     <div class="min-w-0 hidden" id="repeat-end-value-container">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]" id="repeat-end-label">數值</label>
-                        <input type="date" id="repeat-until-date" class="hidden w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
-                        <input type="number" id="repeat-count" min="1" placeholder="例如：10" class="hidden w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54] truncate" id="repeat-end-label">數值</label>
+                        <input type="date" id="repeat-until-date" class="hidden w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
+                        <input type="number" id="repeat-count" min="1" placeholder="例如：10" class="hidden w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
                     </div>
                 </div>
 
                 <div class="min-w-0">
-                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">地點</label>
-                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
+                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54] truncate">地點</label>
+                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full min-w-0 px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
                 </div>
                 <div class="min-w-0">
-                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54]">描述 / 備註</label>
-                    <textarea id="trip-desc" rows="2" class="w-full px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none resize-none transition bg-white" placeholder="會議議程..."></textarea>
+                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54] truncate">描述 / 備註</label>
+                    <textarea id="trip-desc" rows="2" class="w-full min-w-0 px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none resize-none transition bg-white" placeholder="會議議程..."></textarea>
                 </div>
                 <div class="min-w-0">
-                    <label id="color-picker-label" class="block text-sm font-semibold mb-2 text-[#2C2C54]">顏色標記</label>
+                    <label id="color-picker-label" class="block text-sm font-semibold mb-2 text-[#2C2C54] truncate">顏色標記</label>
                     <div class="flex flex-wrap gap-2 md:gap-3" id="color-picker"></div>
                 </div>
                 <div class="flex gap-3 pt-3 sticky bottom-0 bg-white pb-2 border-t mt-4 min-w-0">
@@ -788,7 +785,6 @@
 
         // ==================== Modal Action bindings ====================
         
-        // 處理核取方塊的單選邏輯
         function handleRepeatCheck(clickedBox) {
             const boxes = document.querySelectorAll('.repeat-checkbox');
             boxes.forEach(box => {
@@ -797,7 +793,6 @@
             toggleRepeatOptions();
         }
 
-        // 全天按鈕邏輯
         function toggleAllDay() {
             const isAllDay = document.getElementById('all-day-checkbox').checked;
             const endDate = document.getElementById('end-date');
@@ -991,7 +986,6 @@
         let currentView = 'month'; 
         let selectedDate = null;
         
-        // --- 修正：更換為你指定的顏色 ---
         const NEW_COLORS = [
             { color: '#FF4848', label: '!' },
             { color: '#F7789A', label: 'N' }, 
