@@ -178,7 +178,7 @@
     </div>
     <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55] hidden transition-opacity duration-300 cursor-pointer"></div>
 
-    <!-- Trip Modal -->
+    <!-- Trip Modal (修正包含方框 UI 與防呆 min) -->
     <div id="trip-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
         <div class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto overflow-x-hidden flex flex-col">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
@@ -191,13 +191,28 @@
                     <input type="text" id="trip-title" required class="w-full px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none transition bg-white" placeholder="例如：產品開發會議">
                 </div>
                 
+                <!-- 新增：全天與循環勾選區塊 -->
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 py-1 text-[13px] md:text-sm text-[#2C2C54] font-semibold">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" id="all-day-checkbox" class="accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" onchange="toggleAllDay()"> 全天
+                    </label>
+                    <div class="w-[1px] h-4 bg-slate-300 mx-1"></div>
+                    <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                        <span class="text-slate-500">重複</span>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="daily" onchange="handleRepeatCheck(this)"> 天</label>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="weekly" onchange="handleRepeatCheck(this)"> 週</label>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="monthly" onchange="handleRepeatCheck(this)"> 月</label>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="yearly" onchange="handleRepeatCheck(this)"> 年</label>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-4">
                     <div class="min-w-0">
                         <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">開始日期</label>
                         <input type="date" id="start-date" required class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
                     </div>
                     <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">開始時間 <span class="text-[10px] text-slate-400 font-normal truncate">(留白全天)</span></label>
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">開始時間</label>
                         <input type="time" id="start-time" class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
                     </div>
                 </div>
@@ -205,39 +220,28 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="min-w-0">
                         <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">結束日期</label>
-                        <input type="date" id="end-date" required class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
+                        <input type="date" id="end-date" required class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block transition-colors">
                     </div>
                     <div class="min-w-0">
                         <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">結束時間</label>
-                        <input type="time" id="end-time" class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
+                        <input type="time" id="end-time" class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block transition-colors">
                     </div>
                 </div>
 
-                <!-- 循環重複設定區塊 -->
-                <div id="repeat-section" class="border-t border-b border-[#E8E3FF] py-4 space-y-4">
+                <!-- 隱藏的結束條件 -->
+                <div id="repeat-options" class="hidden grid-cols-2 gap-4 border-t border-[#E8E3FF] pt-4">
                     <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">重複設定</label>
-                        <select id="repeat-type" class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block" onchange="toggleRepeatOptions()">
-                            <option value="none">不重複</option>
-                            <option value="weekly">每星期循環</option>
-                            <option value="yearly">每年循環</option>
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">結束條件</label>
+                        <select id="repeat-end-type" class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block" onchange="toggleRepeatEndInput()">
+                            <option value="forever">一直循環</option>
+                            <option value="until_date">直到某一天</option>
+                            <option value="count">循環幾次</option>
                         </select>
                     </div>
-                    
-                    <div id="repeat-options" class="hidden grid-cols-2 gap-4">
-                        <div class="min-w-0">
-                            <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">結束條件</label>
-                            <select id="repeat-end-type" class="w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block" onchange="toggleRepeatEndInput()">
-                                <option value="forever">一直循環</option>
-                                <option value="until_date">直到某一天</option>
-                                <option value="count">循環幾次</option>
-                            </select>
-                        </div>
-                        <div class="min-w-0 hidden" id="repeat-end-value-container">
-                            <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]" id="repeat-end-label">數值</label>
-                            <input type="date" id="repeat-until-date" class="hidden w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
-                            <input type="number" id="repeat-count" min="1" placeholder="例如：10" class="hidden w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
-                        </div>
+                    <div class="min-w-0 hidden" id="repeat-end-value-container">
+                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]" id="repeat-end-label">數值</label>
+                        <input type="date" id="repeat-until-date" class="hidden w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
+                        <input type="number" id="repeat-count" min="1" placeholder="例如：10" class="hidden w-full px-2.5 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
                     </div>
                 </div>
 
@@ -782,11 +786,52 @@
             closeShoppingModal();
         }
 
-        // ==================== Modal Repeats Logic ====================
+        // ==================== Modal Action bindings ====================
+        
+        // 處理核取方塊的單選邏輯
+        function handleRepeatCheck(clickedBox) {
+            const boxes = document.querySelectorAll('.repeat-checkbox');
+            boxes.forEach(box => {
+                if (box !== clickedBox) box.checked = false;
+            });
+            toggleRepeatOptions();
+        }
+
+        // 全天按鈕邏輯
+        function toggleAllDay() {
+            const isAllDay = document.getElementById('all-day-checkbox').checked;
+            const endDate = document.getElementById('end-date');
+            const startTime = document.getElementById('start-time');
+            const endTime = document.getElementById('end-time');
+            
+            if (isAllDay) {
+                endDate.value = document.getElementById('start-date').value;
+                endDate.disabled = true;
+                endDate.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+                
+                startTime.value = '';
+                startTime.disabled = true;
+                startTime.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+                
+                endTime.value = '';
+                endTime.disabled = true;
+                endTime.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+            } else {
+                endDate.disabled = false;
+                endDate.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+                
+                startTime.disabled = false;
+                startTime.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+                
+                endTime.disabled = false;
+                endTime.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+            }
+        }
+
         function toggleRepeatOptions() {
-            const type = document.getElementById('repeat-type').value;
+            const checkedBox = document.querySelector('.repeat-checkbox:checked');
             const opts = document.getElementById('repeat-options');
-            if(type === 'none') {
+            if(!checkedBox) {
                 opts.classList.remove('grid');
                 opts.classList.add('hidden');
             } else {
@@ -828,7 +873,6 @@
             return `${y}-${m}-${d}`;
         }
 
-        // ==================== Modal Action bindings ====================
         document.getElementById('trip-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!currentCalendarId || !currentUser) return alert('請先登入');
@@ -837,7 +881,9 @@
                 showLoading();
                 const startDateVal = document.getElementById('start-date').value;
                 const endDateVal = document.getElementById('end-date').value || startDateVal;
-                const repeatType = document.getElementById('repeat-type').value;
+                
+                const checkedRepeat = document.querySelector('.repeat-checkbox:checked');
+                const repeatType = checkedRepeat ? checkedRepeat.value : 'none';
 
                 const baseTrip = {
                     calendar_id: currentCalendarId, 
@@ -874,7 +920,10 @@
                         if (endType === 'count') {
                             maxCount = parseInt(document.getElementById('repeat-count').value) || 1;
                         } else if (endType === 'forever') {
-                            maxCount = repeatType === 'weekly' ? 156 : 10; 
+                            if (repeatType === 'daily') maxCount = 365; 
+                            if (repeatType === 'weekly') maxCount = 156; 
+                            if (repeatType === 'monthly') maxCount = 60; 
+                            if (repeatType === 'yearly') maxCount = 10;  
                         }
                         
                         let untilDate = endType === 'until_date' && document.getElementById('repeat-until-date').value 
@@ -888,9 +937,15 @@
                                 end_date: formatDateLocal(currentEnd)
                             });
                             
-                            if (repeatType === 'weekly') {
+                            if (repeatType === 'daily') {
+                                currentStart.setDate(currentStart.getDate() + 1);
+                                currentEnd.setDate(currentEnd.getDate() + 1);
+                            } else if (repeatType === 'weekly') {
                                 currentStart.setDate(currentStart.getDate() + 7);
                                 currentEnd.setDate(currentEnd.getDate() + 7);
+                            } else if (repeatType === 'monthly') {
+                                currentStart.setMonth(currentStart.getMonth() + 1);
+                                currentEnd.setMonth(currentEnd.getMonth() + 1);
                             } else if (repeatType === 'yearly') {
                                 currentStart.setFullYear(currentStart.getFullYear() + 1);
                                 currentEnd.setFullYear(currentEnd.getFullYear() + 1);
@@ -912,8 +967,15 @@
 
         document.getElementById('start-date').addEventListener('change', function(e) {
             const endInput = document.getElementById('end-date');
-            endInput.value = e.target.value;
-            endInput.min = e.target.value;
+            endInput.min = e.target.value; 
+            
+            if (document.getElementById('all-day-checkbox').checked) {
+                endInput.value = e.target.value;
+            } else {
+                if (endInput.value && endInput.value < e.target.value) {
+                    endInput.value = e.target.value;
+                }
+            }
         });
 
         async function deleteTrip() {
@@ -929,7 +991,7 @@
         let currentView = 'month'; 
         let selectedDate = null;
         
-        // --- 修改：包含新的顏色的物件陣列 ---
+        // --- 修正：更換為你指定的顏色 ---
         const NEW_COLORS = [
             { color: '#FF4848', label: '!' },
             { color: '#F7789A', label: 'N' }, 
@@ -1222,23 +1284,42 @@
             const saveBtn = document.getElementById('save-trip-btn');
             const deleteBtn = document.getElementById('delete-trip-btn');
             const modalTitle = document.getElementById('modal-title');
-            const formInputs = document.querySelectorAll('#trip-form input, #trip-form textarea');
-            const repeatSection = document.getElementById('repeat-section');
+            const formInputs = document.querySelectorAll('#trip-form input:not([type="checkbox"]):not([type="radio"]), #trip-form textarea, #trip-form select');
             
-            formInputs.forEach(input => input.disabled = false);
+            formInputs.forEach(input => {
+                input.disabled = false;
+                input.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+            });
+            
             saveBtn.classList.remove('hidden');
             document.getElementById('color-picker-label').classList.remove('hidden');
             document.getElementById('color-picker').classList.remove('hidden');
 
+            document.getElementById('all-day-checkbox').checked = false;
+            document.querySelectorAll('.repeat-checkbox').forEach(box => box.checked = false);
+            toggleRepeatOptions();
+            toggleAllDay();
+
             if (trip) {
                 editingTripId = trip.id; 
-                repeatSection.classList.add('hidden'); 
+                document.getElementById('start-date').value = trip.startDate || '';
+                document.getElementById('end-date').min = trip.startDate || ''; 
+                document.getElementById('end-date').value = trip.endDate || '';
+                
+                if (!trip.startTime && !trip.endTime && trip.startDate === trip.endDate) {
+                    document.getElementById('all-day-checkbox').checked = true;
+                    toggleAllDay();
+                } else {
+                    document.getElementById('start-time').value = trip.startTime || '';
+                    document.getElementById('end-time').value = trip.endTime || '';
+                }
                 
                 if (trip.isGoogle) {
                     modalTitle.textContent = '檢視 Google 行程 (唯讀)';
                     saveBtn.classList.add('hidden');
                     deleteBtn.classList.add('hidden');
                     formInputs.forEach(input => input.disabled = true);
+                    document.getElementById('all-day-checkbox').disabled = true;
                     document.getElementById('color-picker-label').classList.add('hidden');
                     document.getElementById('color-picker').classList.add('hidden');
                 } else {
@@ -1248,26 +1329,18 @@
                 }
                 
                 document.getElementById('trip-title').value = trip.title || '';
-                document.getElementById('start-date').value = trip.startDate || '';
-                document.getElementById('end-date').value = trip.endDate || '';
-                document.getElementById('start-time').value = trip.startTime || '';
-                document.getElementById('end-time').value = trip.endTime || '';
                 document.getElementById('location').value = trip.location || '';
                 document.getElementById('trip-desc').value = trip.description || '';
                 if (trip.color && !trip.isGoogle) { selectedColor = trip.color; initColorPicker(); }
             } else {
                 editingTripId = null; 
-                repeatSection.classList.remove('hidden'); 
-                document.getElementById('repeat-type').value = 'none';
-                toggleRepeatOptions();
-
                 modalTitle.textContent = '新增行程'; 
                 saveBtn.textContent = '儲存';
                 deleteBtn.classList.add('hidden');
                 const d = prefillDate || new Date().toISOString().split('T')[0];
                 document.getElementById('start-date').value = d; 
                 document.getElementById('end-date').value = d;
-                document.getElementById('end-date').min = d;
+                document.getElementById('end-date').min = d; 
             }
         }
 
