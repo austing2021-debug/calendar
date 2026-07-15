@@ -179,7 +179,7 @@
 
     <!-- Trip Modal -->
     <div id="trip-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
-        <div class="bg-white w-full max-w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto overflow-x-hidden flex flex-col">
+        <div class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto overflow-x-hidden flex flex-col">
             <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
                 <h3 id="modal-title" class="text-2xl font-semibold text-[#2C2C54]">新增行程</h3>
                 <button onclick="closeTripModal()" class="text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
@@ -856,7 +856,6 @@
                         end_date: endDateVal
                     }).eq('id', editingTripId);
                 } else {
-                    // 新增行程處理循環邏輯
                     if (repeatType === 'none') {
                         await supabaseClient.from('trips').insert({
                             ...baseTrip,
@@ -868,13 +867,13 @@
                         let currentStart = new Date(startDateVal + 'T00:00:00');
                         let currentEnd = new Date(endDateVal + 'T00:00:00');
                         let count = 0;
-                        let maxCount = 100; // 系統安全機制
+                        let maxCount = 100; 
                         let tripsToInsert = [];
                         
                         if (endType === 'count') {
                             maxCount = parseInt(document.getElementById('repeat-count').value) || 1;
                         } else if (endType === 'forever') {
-                            maxCount = repeatType === 'weekly' ? 156 : 10; // 預設 3年 / 10年 的循環限制，避免塞爆資料庫
+                            maxCount = repeatType === 'weekly' ? 156 : 10; 
                         }
                         
                         let untilDate = endType === 'until_date' && document.getElementById('repeat-until-date').value 
@@ -928,9 +927,22 @@
         let currentDate = new Date();
         let currentView = 'month'; 
         let selectedDate = null;
-        let selectedColor = '#4F97E9';
         
-        const NEW_COLORS = ['#FF6060', '#F8BD5E', '#F3E775', '#8FEC6F', '#76D2EE', '#6B8EF8', '#B88BF7'];
+        // --- 修改：新的顏色與標記設定 ---
+        const NEW_COLORS = [
+            { color: '#FF4848', label: '!' },
+            { color: '#76D2EE', label: 'N' },
+            { color: '#6B8EF8', label: 'T' },
+            { color: '#B88BF7', label: 'L' },
+            { color: '#F8BD5E', label: '旅' },
+            { color: '#F3E775', label: '校' },
+            { color: '#8FEC6F', label: '餐' },
+            { color: '#76D2EE', label: '展' }, // 依據需求：第二個與第八個色碼皆為 #76D2EE
+            { color: '#BFBEBE', label: '其' }
+        ];
+        
+        let selectedColor = '#FF4848'; // 預設改為陣列中第一個顏色
+        
         const WEEKDAYS = ['週日','週一','週二','週三','週四','週五','週六'];
         const EN_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const TAIWAN_HOLIDAYS = { "2026-01-01":"元旦","2026-02-17":"除夕","2026-02-18":"春節","2026-04-03":"兒童節","2026-04-04":"清明節","2026-06-19":"端午節","2026-09-25":"中秋節","2026-10-10":"國慶日" };
@@ -1041,7 +1053,6 @@
                 const holiday = getHoliday(cellDateStr), lunarTxt = getShortLunar(cellDateStr);
                 let badgeHtml = holiday ? `<span class="holiday-badge">${holiday}</span>` : `<span class="lunar-badge">${lunarTxt}</span>`;
                 
-                // 修正：週末日期字體改為紅色、粗體
                 const dateTextColorClass = isWeekend ? 'text-[#FF4C4C] font-black' : 'text-[#2C2C54] font-bold';
 
                 cell.innerHTML = `
@@ -1086,7 +1097,6 @@
             dates.forEach((dateStr, idx) => {
                 const dObj = new Date(dateStr), dayNum = dObj.getDate();
                 const lunarTxt = getShortLunar(dateStr);
-                // 修正：週末日期字體改為紅色、粗體
                 const dayColor = (idx === 0 || idx === 6) ? 'text-[#FF4C4C] font-black' : 'text-[#2C2C54] font-black';
                 
                 headerHTML += `
@@ -1221,7 +1231,7 @@
 
             if (trip) {
                 editingTripId = trip.id; 
-                repeatSection.classList.add('hidden'); // 編輯時不顯示重複設定
+                repeatSection.classList.add('hidden'); 
                 
                 if (trip.isGoogle) {
                     modalTitle.textContent = '檢視 Google 行程 (唯讀)';
@@ -1246,7 +1256,7 @@
                 if (trip.color && !trip.isGoogle) { selectedColor = trip.color; initColorPicker(); }
             } else {
                 editingTripId = null; 
-                repeatSection.classList.remove('hidden'); // 新增時顯示重複設定
+                repeatSection.classList.remove('hidden'); 
                 document.getElementById('repeat-type').value = 'none';
                 toggleRepeatOptions();
 
@@ -1264,12 +1274,17 @@
             document.getElementById('trip-modal').classList.remove('flex'); document.getElementById('trip-modal').classList.add('hidden');
         }
 
+        // --- 變更：加入有標籤與純白字體的顏色圓圈 ---
         function initColorPicker() {
             const c = document.getElementById('color-picker'); c.innerHTML = '';
-            NEW_COLORS.forEach(col => {
+            NEW_COLORS.forEach(item => {
                 const s = document.createElement('div');
-                s.className = `w-8 h-8 rounded-full cursor-pointer transition ${col === selectedColor ? 'ring-2 ring-offset-2 ring-[#2C2C54] scale-110' : 'hover:scale-110'}`;
-                s.style.backgroundColor = col; s.onclick = () => { selectedColor = col; initColorPicker(); }; c.appendChild(s);
+                s.className = `w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[13px] shadow-sm cursor-pointer transition ${item.color === selectedColor ? 'ring-2 ring-offset-2 ring-[#2C2C54] scale-110' : 'hover:scale-110'}`;
+                s.style.backgroundColor = item.color; 
+                s.style.textShadow = '0px 0px 2px rgba(0,0,0,0.3)';
+                s.innerText = item.label;
+                s.onclick = () => { selectedColor = item.color; initColorPicker(); }; 
+                c.appendChild(s);
             });
         }
 
