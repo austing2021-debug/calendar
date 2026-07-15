@@ -118,6 +118,7 @@
                     <button id="add-trip-btn" onclick="openTripModal()" class="w-full py-3 text-white rounded-xl text-[15px] font-bold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
                         <i class="fa-solid fa-plus mr-1"></i> 新增行程
                     </button>
+                    <!-- Google 同步按鈕 -->
                     <button id="sync-google-btn" onclick="syncGoogleCalendar()" class="w-full mt-2 py-2.5 text-[#2C2C54] border border-[#E8E3FF] rounded-xl text-[13px] font-bold shadow-sm hover:bg-slate-50 transition">
                         <i class="fa-brands fa-google text-red-500 mr-1"></i> 同步 Google 日曆
                     </button>
@@ -928,20 +929,20 @@
         let currentView = 'month'; 
         let selectedDate = null;
         
-        // --- 修改：新的顏色與標記設定 ---
+        // --- 修改：包含新的顏色的物件陣列 ---
         const NEW_COLORS = [
             { color: '#FF4848', label: '!' },
-            { color: '#76D2EE', label: 'N' },
+            { color: '#F7789A', label: 'N' }, 
             { color: '#6B8EF8', label: 'T' },
             { color: '#B88BF7', label: 'L' },
             { color: '#F8BD5E', label: '旅' },
             { color: '#F3E775', label: '校' },
             { color: '#8FEC6F', label: '餐' },
-            { color: '#76D2EE', label: '展' }, // 依據需求：第二個與第八個色碼皆為 #76D2EE
+            { color: '#76D2EE', label: '展' }, 
             { color: '#BFBEBE', label: '其' }
         ];
         
-        let selectedColor = '#FF4848'; // 預設改為陣列中第一個顏色
+        let selectedColor = '#FF4848'; 
         
         const WEEKDAYS = ['週日','週一','週二','週三','週四','週五','週六'];
         const EN_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1274,7 +1275,6 @@
             document.getElementById('trip-modal').classList.remove('flex'); document.getElementById('trip-modal').classList.add('hidden');
         }
 
-        // --- 變更：加入有標籤與純白字體的顏色圓圈 ---
         function initColorPicker() {
             const c = document.getElementById('color-picker'); c.innerHTML = '';
             NEW_COLORS.forEach(item => {
