@@ -118,6 +118,7 @@
                     <button id="add-trip-btn" onclick="openTripModal()" class="w-full py-3 text-white rounded-xl text-[15px] font-bold shadow-sm hover:opacity-90 transition" style="background:#4F97E9;">
                         <i class="fa-solid fa-plus mr-1"></i> 新增行程
                     </button>
+                    <!-- Google 同步按鈕 -->
                     <button id="sync-google-btn" onclick="syncGoogleCalendar()" class="w-full mt-2 py-2.5 text-[#2C2C54] border border-[#E8E3FF] rounded-xl text-[13px] font-bold shadow-sm hover:bg-slate-50 transition">
                         <i class="fa-brands fa-google text-red-500 mr-1"></i> 同步 Google 日曆
                     </button>
@@ -177,87 +178,90 @@
     </div>
     <div id="detail-overlay" onclick="closeDayDetail()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55] hidden transition-opacity duration-300 cursor-pointer"></div>
 
-    <!-- Trip Modal (修正：緊湊間距 gap-2 與 px-2 以防止手機跑版) -->
+    <!-- Trip Modal (徹底修復手機版破版問題) -->
     <div id="trip-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
-        <div class="bg-white w-full md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto overflow-x-hidden flex flex-col">
-            <div class="px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10">
-                <h3 id="modal-title" class="text-2xl font-semibold text-[#2C2C54]">新增行程</h3>
+        <div class="bg-white w-full max-w-[100vw] overflow-x-hidden md:w-[520px] md:rounded-3xl shadow-2xl border md:border-0 rounded-t-3xl max-h-[92vh] overflow-y-auto flex flex-col">
+            <div class="px-4 md:px-5 pt-5 pb-4 flex justify-between items-center border-b md:border-0 sticky top-0 bg-white z-10 shrink-0">
+                <h3 id="modal-title" class="text-xl md:text-2xl font-semibold text-[#2C2C54]">新增行程</h3>
                 <button onclick="closeTripModal()" class="text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
             </div>
-            <form id="trip-form" class="p-4 md:p-5 space-y-4 md:space-y-5">
+            <form id="trip-form" class="p-4 md:p-5 space-y-4">
                 <div class="min-w-0">
-                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54] truncate">行程標題 <span class="text-red-500" id="title-required-star">*</span></label>
-                    <input type="text" id="trip-title" required class="w-full min-w-0 px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none transition bg-white" placeholder="例如：產品開發會議">
+                    <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54]">行程標題 <span class="text-red-500" id="title-required-star">*</span></label>
+                    <input type="text" id="trip-title" required class="w-full min-w-0 px-3 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none transition bg-white" placeholder="例如：產品開發會議">
                 </div>
                 
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 py-1 text-[13px] md:text-sm text-[#2C2C54] font-semibold min-w-0">
-                    <label class="flex items-center gap-1.5 cursor-pointer shrink-0">
-                        <input type="checkbox" id="all-day-checkbox" class="accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" onchange="toggleAllDay()"> 全天
+                <!-- 全天與循環勾選區塊 -->
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-2 py-1 text-[12px] md:text-sm text-[#2C2C54] font-semibold min-w-0">
+                    <label class="flex items-center gap-1 cursor-pointer shrink-0">
+                        <input type="checkbox" id="all-day-checkbox" class="accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" onchange="toggleAllDay()"> <span class="whitespace-nowrap">全天</span>
                     </label>
                     <div class="w-[1px] h-4 bg-slate-300 mx-1 shrink-0"></div>
-                    <div class="flex flex-wrap items-center gap-2 md:gap-3 shrink-0">
-                        <span class="text-slate-500">重複</span>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="daily" onchange="handleRepeatCheck(this)"> 天</label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="weekly" onchange="handleRepeatCheck(this)"> 週</label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="monthly" onchange="handleRepeatCheck(this)"> 月</label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-4 h-4 rounded cursor-pointer" value="yearly" onchange="handleRepeatCheck(this)"> 年</label>
+                    <div class="flex flex-wrap items-center gap-1.5 md:gap-3 shrink-0">
+                        <span class="text-slate-500 whitespace-nowrap">重複</span>
+                        <label class="flex items-center gap-0.5 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-3.5 md:w-4 h-3.5 md:h-4 rounded cursor-pointer" value="daily" onchange="handleRepeatCheck(this)"> <span class="whitespace-nowrap">天</span></label>
+                        <label class="flex items-center gap-0.5 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-3.5 md:w-4 h-3.5 md:h-4 rounded cursor-pointer" value="weekly" onchange="handleRepeatCheck(this)"> <span class="whitespace-nowrap">週</span></label>
+                        <label class="flex items-center gap-0.5 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-3.5 md:w-4 h-3.5 md:h-4 rounded cursor-pointer" value="monthly" onchange="handleRepeatCheck(this)"> <span class="whitespace-nowrap">月</span></label>
+                        <label class="flex items-center gap-0.5 cursor-pointer"><input type="checkbox" class="repeat-checkbox accent-[#4F97E9] w-3.5 md:w-4 h-3.5 md:h-4 rounded cursor-pointer" value="yearly" onchange="handleRepeatCheck(this)"> <span class="whitespace-nowrap">年</span></label>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 md:gap-4">
-                    <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">開始日期</label>
-                        <input type="date" id="start-date" required class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
+                <!-- 完美維持同一排，防撐破設計 -->
+                <div class="flex gap-2 md:gap-4">
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-[12px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">開始日期</label>
+                        <input type="date" id="start-date" required class="w-full min-w-0 px-1 md:px-3 py-2 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none bg-white">
                     </div>
-                    <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">開始時間</label>
-                        <input type="time" id="start-time" class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block">
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-[12px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">開始時間 <span class="text-[9px] md:text-[10px] text-slate-400 font-normal">(留白全天)</span></label>
+                        <input type="time" id="start-time" class="w-full min-w-0 px-1 md:px-3 py-2 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none bg-white">
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-2 gap-2 md:gap-4">
-                    <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">結束日期</label>
-                        <input type="date" id="end-date" required class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block transition-colors">
+                <div class="flex gap-2 md:gap-4">
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-[12px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">結束日期</label>
+                        <input type="date" id="end-date" required class="w-full min-w-0 px-1 md:px-3 py-2 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none bg-white transition-colors">
                     </div>
-                    <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">結束時間</label>
-                        <input type="time" id="end-time" class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block transition-colors">
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-[12px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">結束時間</label>
+                        <input type="time" id="end-time" class="w-full min-w-0 px-1 md:px-3 py-2 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none bg-white transition-colors">
                     </div>
                 </div>
 
-                <div id="repeat-options" class="hidden grid-cols-2 gap-2 md:gap-4 border-t border-[#E8E3FF] pt-4 mt-2">
-                    <div class="min-w-0">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54] truncate">結束條件</label>
-                        <select id="repeat-end-type" class="w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white block" onchange="toggleRepeatEndInput()">
+                <!-- 隱藏的結束條件 -->
+                <div id="repeat-options" class="hidden flex-row gap-2 md:gap-4 border-t border-[#E8E3FF] pt-4 mt-2">
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-[12px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate">結束條件</label>
+                        <select id="repeat-end-type" class="w-full min-w-0 px-2 md:px-3 py-2 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none bg-white" onchange="toggleRepeatEndInput()">
                             <option value="forever">一直循環</option>
                             <option value="until_date">直到某一天</option>
                             <option value="count">循環幾次</option>
                         </select>
                     </div>
-                    <div class="min-w-0 hidden" id="repeat-end-value-container">
-                        <label class="block text-[13px] md:text-sm font-semibold mb-1.5 text-[#2C2C54] truncate" id="repeat-end-label">數值</label>
-                        <input type="date" id="repeat-until-date" class="hidden w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
-                        <input type="number" id="repeat-count" min="1" placeholder="例如：10" class="hidden w-full min-w-0 px-2 md:px-4 py-2.5 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
+                    <div class="flex-1 min-w-0 hidden" id="repeat-end-value-container">
+                        <label class="block text-[12px] md:text-sm font-semibold mb-1 text-[#2C2C54] truncate" id="repeat-end-label">數值</label>
+                        <input type="date" id="repeat-until-date" class="hidden w-full min-w-0 px-2 md:px-3 py-2 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none bg-white">
+                        <input type="number" id="repeat-count" min="1" placeholder="例如：10" class="hidden w-full min-w-0 px-2 md:px-3 py-2 md:py-3 text-[12px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none bg-white">
                     </div>
                 </div>
 
                 <div class="min-w-0">
-                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54] truncate">地點</label>
-                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full min-w-0 px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none bg-white">
+                    <label class="block text-[12px] md:text-sm font-semibold mb-1 text-[#2C2C54]">地點</label>
+                    <input type="text" id="location" placeholder="例如：台北信義區" class="w-full min-w-0 px-3 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none bg-white">
                 </div>
                 <div class="min-w-0">
-                    <label class="block text-sm font-semibold mb-1.5 text-[#2C2C54] truncate">描述 / 備註</label>
-                    <textarea id="trip-desc" rows="2" class="w-full min-w-0 px-3 md:px-4 py-2.5 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl md:rounded-2xl focus:border-[#4F97E9] outline-none resize-none transition bg-white" placeholder="會議議程..."></textarea>
+                    <label class="block text-[12px] md:text-sm font-semibold mb-1 text-[#2C2C54]">描述 / 備註</label>
+                    <textarea id="trip-desc" rows="2" class="w-full min-w-0 px-3 md:px-4 py-2 md:py-3 text-[13px] md:text-sm border border-[#E8E3FF] rounded-xl focus:border-[#4F97E9] outline-none resize-none transition bg-white" placeholder="會議議程..."></textarea>
                 </div>
                 <div class="min-w-0">
-                    <label id="color-picker-label" class="block text-sm font-semibold mb-2 text-[#2C2C54] truncate">顏色標記</label>
-                    <div class="flex flex-wrap gap-2 md:gap-3" id="color-picker"></div>
+                    <label id="color-picker-label" class="block text-[12px] md:text-sm font-semibold mb-1.5 text-[#2C2C54] truncate">顏色標記</label>
+                    <div class="flex flex-wrap gap-2.5 md:gap-3" id="color-picker"></div>
                 </div>
-                <div class="flex gap-3 pt-3 sticky bottom-0 bg-white pb-2 border-t mt-4 min-w-0">
-                    <button type="button" id="delete-trip-btn" onclick="deleteTrip()" class="hidden w-12 flex items-center justify-center py-2 md:py-3 border border-red-200 text-red-500 rounded-xl md:rounded-2xl hover:bg-red-50 transition-colors"><i class="fa-solid fa-trash"></i></button>
-                    <button type="button" onclick="closeTripModal()" class="flex-1 py-2.5 md:py-3 text-[13px] md:text-base border border-[#E8E3FF] rounded-xl md:rounded-2xl text-[#2C2C54] hover:bg-slate-50 transition-colors font-medium">取消</button>
-                    <button type="submit" id="save-trip-btn" class="flex-1 py-2.5 md:py-3 text-[13px] md:text-base text-white rounded-xl md:rounded-2xl font-semibold shadow-sm hover:opacity-90 transition-opacity bg-[#4F97E9]">儲存</button>
+                <div class="flex gap-3 pt-3 sticky bottom-0 bg-white pb-2 border-t mt-4 min-w-0 shrink-0">
+                    <button type="button" id="delete-trip-btn" onclick="deleteTrip()" class="hidden w-12 flex items-center justify-center py-2 border border-red-200 text-red-500 rounded-xl hover:bg-red-50 transition-colors"><i class="fa-solid fa-trash"></i></button>
+                    <button type="button" onclick="closeTripModal()" class="flex-1 py-2.5 text-[13px] md:text-base border border-[#E8E3FF] rounded-xl text-[#2C2C54] hover:bg-slate-50 transition-colors font-medium">取消</button>
+                    <button type="submit" id="save-trip-btn" class="flex-1 py-2.5 text-[13px] md:text-base text-white rounded-xl font-semibold shadow-sm hover:opacity-90 transition-opacity bg-[#4F97E9]">儲存</button>
                 </div>
             </form>
         </div>
@@ -827,11 +831,11 @@
             const checkedBox = document.querySelector('.repeat-checkbox:checked');
             const opts = document.getElementById('repeat-options');
             if(!checkedBox) {
-                opts.classList.remove('grid');
+                opts.classList.remove('flex');
                 opts.classList.add('hidden');
             } else {
                 opts.classList.remove('hidden');
-                opts.classList.add('grid');
+                opts.classList.add('flex');
                 toggleRepeatEndInput();
             }
         }
@@ -962,7 +966,10 @@
 
         document.getElementById('start-date').addEventListener('change', function(e) {
             const endInput = document.getElementById('end-date');
-            endInput.min = e.target.value; 
+            // 只在有值，或是原本為空時才設定 min，避免阻擋編輯
+            if (!endInput.value || endInput.value < e.target.value) {
+                endInput.min = e.target.value; 
+            }
             
             if (document.getElementById('all-day-checkbox').checked) {
                 endInput.value = e.target.value;
@@ -986,16 +993,13 @@
         let currentView = 'month'; 
         let selectedDate = null;
         
+        // --- 這裡將陣列修改為 5 種顏色，並包含 N (粉紅) 與 家 (黃) ---
         const NEW_COLORS = [
             { color: '#FF4848', label: '!' },
             { color: '#F7789A', label: 'N' }, 
             { color: '#6B8EF8', label: 'T' },
             { color: '#B88BF7', label: 'L' },
-            { color: '#F8BD5E', label: '旅' },
-            { color: '#F3E775', label: '校' },
-            { color: '#8FEC6F', label: '餐' },
-            { color: '#76D2EE', label: '展' }, 
-            { color: '#BFBEBE', label: '其' }
+            { color: '#F8BD5E', label: '家' }
         ];
         
         let selectedColor = '#FF4848'; 
@@ -1279,6 +1283,7 @@
             const deleteBtn = document.getElementById('delete-trip-btn');
             const modalTitle = document.getElementById('modal-title');
             const formInputs = document.querySelectorAll('#trip-form input:not([type="checkbox"]):not([type="radio"]), #trip-form textarea, #trip-form select');
+            const repeatSection = document.getElementById('repeat-options');
             
             formInputs.forEach(input => {
                 input.disabled = false;
@@ -1296,9 +1301,13 @@
 
             if (trip) {
                 editingTripId = trip.id; 
+                repeatSection.classList.add('hidden'); 
+                
                 document.getElementById('start-date').value = trip.startDate || '';
-                document.getElementById('end-date').min = trip.startDate || ''; 
                 document.getElementById('end-date').value = trip.endDate || '';
+                
+                // 放寬編輯時結束日期的 min 限制，確保能顯示正確但防止選擇更早之前的日期
+                document.getElementById('end-date').min = trip.startDate || ''; 
                 
                 if (!trip.startTime && !trip.endTime && trip.startDate === trip.endDate) {
                     document.getElementById('all-day-checkbox').checked = true;
@@ -1316,6 +1325,7 @@
                     document.getElementById('all-day-checkbox').disabled = true;
                     document.getElementById('color-picker-label').classList.add('hidden');
                     document.getElementById('color-picker').classList.add('hidden');
+                    document.querySelectorAll('.repeat-checkbox').forEach(box => box.disabled = true);
                 } else {
                     modalTitle.textContent = '編輯行程'; 
                     saveBtn.textContent = '更新';
@@ -1328,6 +1338,9 @@
                 if (trip.color && !trip.isGoogle) { selectedColor = trip.color; initColorPicker(); }
             } else {
                 editingTripId = null; 
+                document.getElementById('repeat-end-type').value = 'forever';
+                toggleRepeatOptions();
+
                 modalTitle.textContent = '新增行程'; 
                 saveBtn.textContent = '儲存';
                 deleteBtn.classList.add('hidden');
